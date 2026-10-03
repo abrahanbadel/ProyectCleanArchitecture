@@ -1,0 +1,32 @@
+---
+description: Flujo obligatorio antes de generar código (Clean Architecture + SRS)
+alwaysApply: true
+---
+
+# Workflow Fintech Core (siempre)
+
+Antes de generar o modificar código en este monorepo:
+
+1. **Leer** (o reconsultar) las fuentes canónicas:
+   - `REGLAS-IA-CleanArchitecture.md`
+   - `ESPECIFICACIÓN DE REQUISITOS DEL SISTEMA.md`
+2. **Mapear** RF/RNF afectados por el pedido (ver regla SRS).
+3. **Plan corto** (2-5 líneas): capas, archivos a tocar, riesgos de imports/dinero/seguridad.
+4. **Generar código** solo si no contradice las reglas. Si el usuario pide algo que las viola: **advertir el conflicto** antes de continuar.
+5. **Checklist mental** de la sección 11 de `REGLAS-IA-CleanArchitecture.md`.
+6. **Cómo verificar**: indicar comandos (`pnpm typecheck`, `pnpm test`, `pnpm build`, `curl`).
+
+## Formato de respuesta con código
+
+1. Resumen 2-3 líneas (qué y en qué capa).
+2. Ruta de cada archivo antes de su bloque.
+3. Código completo y compilable; sin placeholders en lógica crítica.
+4. `[PENDIENTE]` si falta información del contrato/SRS.
+5. Comandos de verificación concretos.
+
+## Principios no negociables
+
+- No inventar endpoints, DTOs, códigos HTTP ni métodos ausentes en código/SRS.
+- Imports solo hacia adentro (regla de dependencia).
+- Dinero con `Decimal`; nunca `number` / `.toNumber()` para operar o persistir.
+- Señalar violaciones existentes en lugar de copiarlas.

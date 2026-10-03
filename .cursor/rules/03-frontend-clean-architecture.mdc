@@ -1,0 +1,39 @@
+---
+description: Clean Architecture para el frontend fintech-core-front
+globs: fintech-core-front/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend Clean Architecture
+
+Fuente: `REGLAS-IA-CleanArchitecture.md` (sección 9) + SRS (RNF-4).
+Complementa las reglas en `fintech-core-front/.cursor/rules/`.
+
+## Capas
+
+`presentation → application → domain ← infrastructure`
+
+Cadena: `Page → hook → caso de uso → Gateway (puerto) ← adaptador HTTP → apiClient → API`.
+
+## Prohibiciones en componentes/páginas
+
+- No Axios, no `localStorage`, no headers `Authorization`, no URLs de endpoints.
+- No reglas financieras como autoridad (`balance >= amount` solo UX).
+- Los adaptadores/servicios no importan React.
+
+## Estado
+
+- Local: formularios/modales.
+- Global: solo sesión (Context).
+- Remoto: cuentas/saldo/historial; backend es fuente de verdad.
+- Toda consulta: `idle | loading | success | empty | error` (`empty` ≠ `error`).
+
+## Operaciones financieras
+
+- Validar formato/monto > 0 en UI; saldo/estado/permisos en backend.
+- Sin actualización optimista del saldo: tras `201`, refetch saldo e historial.
+- Botón disabled + loading durante envío (RNF-4).
+- Errores de negocio visibles como tales (no como "error de red").
+- Token vía `StorageAdapter`; `AuthGuard` protege rutas (auth real en API).
+
+No inventar endpoints: contrato en `fintech-core-front/docs/frontend/backend-contract.md` y SRS.

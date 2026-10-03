@@ -1,0 +1,25 @@
+---
+description: Docker multi-stage y Twelve-Factor para Fintech Core
+globs: "**/dockerfile,**/Dockerfile,**/docker-compose*.yml,**/.env*,**/nginx.conf"
+alwaysApply: false
+---
+
+# Docker y configuración (Twelve-Factor)
+
+Fuente: `REGLAS-IA-CleanArchitecture.md` (sección 10).
+
+## Imágenes
+
+- Multi-stage: `builder` → `runner` (`node:24-alpine` / `nginx:alpine`).
+- Copiar manifiestos + lockfile primero; `pnpm install --frozen-lockfile`; luego código.
+- `.dockerignore` en el contexto de build (`node_modules`, `dist`, `.env`).
+- Backend: `prisma generate` antes de `build` si el client está en `src/generated`.
+
+## Compose / runtime
+
+- PostgreSQL con volumen persistente, healthcheck y `depends_on: condition: service_healthy`.
+- Arranque backend ideal: verificar BD → `prisma migrate deploy` → API.
+- Config por entorno: `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`.
+- Nunca hornear secretos en la imagen.
+- `VITE_*` son públicas (build-time); jamás secretos.
+- `.env` en `.gitignore`; secretos de prod solo en el proveedor / GitHub Secrets.

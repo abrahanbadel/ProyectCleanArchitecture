@@ -1,0 +1,40 @@
+---
+description: Cumplimiento de RF/RNF del SRS en cada cambio
+alwaysApply: true
+---
+
+# Cumplimiento del SRS
+
+Fuente: `ESPECIFICACIÓN DE REQUISITOS DEL SISTEMA.md`.
+
+Antes de entregar código, identifica los requisitos tocados y declara el estado:
+
+- **cumple** | **parcial** | **pendiente**
+
+## Mapa rápido RF / RNF
+
+| ID | Tema |
+|---|---|
+| RF-1.1 | Registro (+ cuenta inicial) |
+| RF-1.2 | Login JWT 8h |
+| RF-1.3 | Middleware Bearer |
+| RF-2.1 | Crear cuenta |
+| RF-2.2 | Consultar saldos/cuentas |
+| RF-3.1 | Depósito |
+| RF-3.2 | Retiro |
+| RF-3.3 | Transferencia atómica |
+| RF-3.4 | Historial |
+| RNF-1 | Capas Clean Architecture |
+| RNF-2 | Concurrencia + Decimal |
+| RNF-3 | bcrypt ≥10, sin leaks internos |
+| RNF-4 | Loading/disabled anti doble envío |
+
+## Obligaciones
+
+- No inventar endpoints/DTOs fuera del contrato existente o del SRS.
+- Si un cambio deja un RF a medias, marcar `[PENDIENTE]` con el ID.
+- DoD (sección 6 del SRS): tipado estricto, capas, invariantes en dominio, pruebas de aceptación del escenario.
+
+## Respuesta mínima de cumplimiento
+
+Incluir una línea del estilo: `SRS: RF-3.3 cumple · RNF-2 parcial (falta lock)`.
