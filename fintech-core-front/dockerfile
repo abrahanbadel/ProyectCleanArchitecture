@@ -1,0 +1,35 @@
+# ==========================================================
+# ETAPA 1: Builder (Compilación de React con Vite y pnpm)
+# ==========================================================
+FROM node:24-alpine AS builder
+
+RUN npm i -g pnpm@12.6.0
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+# Argumento de construcción: Inyección de la URL del API Backend
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+# Transpilar y empaquetar el frontend a HTML/CSS/JS minificado (/app/dist)
+RUN pnpm build
+
+# ==========================================================
+# ETAPA 2: Servidor Web de Archivos Estáticos (Nginx)
+# ==========================================================
+FROM nginx:alpine
+
+# Sustituir la configuración por defecto de Nginx por nuestra configuración para SPAs
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copiar el paquete compilado desde la etapa de construcción
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
