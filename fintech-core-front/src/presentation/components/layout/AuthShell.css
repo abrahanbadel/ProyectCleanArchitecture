@@ -1,0 +1,211 @@
+.login {
+  --bg: #07050c;
+  --text: #f5f3ff;
+  --muted: rgba(245, 243, 255, 0.62);
+  --accent: #8b5cf6;
+  --accent-2: #22d3ee;
+
+  /* Pantalla completa, por encima del navbar/contenedor del layout */
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  color: var(--text);
+  background: var(--bg);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  text-align: left;
+}
+.login *, .login *::before, .login *::after { box-sizing: border-box; }
+.login :where(h1, h2, p) { margin-block: 0; line-height: 1.25; }
+
+/* Con ClickSpark, su contenedor (primer hijo) crece con el contenido */
+.login > div:first-child:not(.login__stage) {
+  display: flex;
+  flex-direction: column;
+  height: auto !important;
+  min-height: 100%;
+}
+
+.login__stage {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 100%;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  overflow: hidden;
+}
+
+/* Fondo: resplandores + rejilla difuminada */
+.login__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60rem 40rem at 8% -10%, rgba(132, 0, 255, 0.38), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 100%, rgba(34, 211, 238, 0.16), transparent 60%);
+}
+.login__bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+
+.login__layout {
+  display: grid;
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4rem);
+  width: 100%;
+  max-width: 1180px;
+}
+@media (min-width: 960px) {
+  .login__layout { grid-template-columns: 1.15fr 0.85fr; }
+}
+
+/* Marca */
+.login__brand { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.25rem; }
+.login__brand--compact { justify-content: center; margin-bottom: 1.25rem; }
+.login__logo {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #8400ff, #22d3ee);
+  box-shadow: 0 8px 24px -6px rgba(132, 0, 255, 0.7);
+}
+.login__brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.01em; }
+
+/* Columna izquierda */
+.login__headline {
+  margin: 0 0 0.9rem;
+  font-size: clamp(1.9rem, 3.1vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.login__headline span {
+  background: linear-gradient(90deg, #c4b5fd, #67e8f9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.login__lead { max-width: 34rem; margin: 0 0 1.5rem; color: var(--muted); line-height: 1.6; }
+
+/* MagicBento: se fuerza una rejilla 2x2 dentro del showcase.
+   Los nombres de clase vienen de MagicBento.css; si cambian, ajústalos aquí. */
+.login-showcase .card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 100%;
+  padding: 0;
+}
+.login-showcase .magic-bento-card {
+  grid-column: auto !important;
+  grid-row: auto !important;
+  aspect-ratio: auto;
+  min-height: 125px;
+  padding: 1em;
+}
+.login-showcase .magic-bento-card__title { font-size: 1rem; font-weight: 600; line-height: 1.25; }
+.login-showcase .magic-bento-card__description { font-size: 0.8rem; line-height: 1.35; }
+.login-showcase .magic-bento-card__label { font-size: 0.8rem; color: #c4b5fd; }
+
+/* Tarjeta del formulario (glassmorphism) */
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: rgba(18, 15, 23, 0.72);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 30px 80px -20px rgba(132, 0, 255, 0.4);
+  animation: login-rise 0.6s ease both;
+}
+.auth-card__header h1 { margin: 0 0 0.4rem; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+.auth-card__header p { margin: 0 0 1.5rem; color: var(--muted); font-size: 0.95rem; }
+.auth-form { display: grid; gap: 1.1rem; }
+.auth-card__footer { margin: 1.5rem 0 0; text-align: center; color: var(--muted); font-size: 0.92rem; }
+.auth-card__footer a { color: #c4b5fd; font-weight: 600; text-decoration: none; }
+.auth-card__footer a:hover { text-decoration: underline; }
+
+.auth-alert--success {
+  border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.1);
+  color: #a7f3d0;
+}
+
+.auth-alert {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+  font-size: 0.9rem;
+}
+
+/* Botón principal */
+.auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.95rem 1rem;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 50%, #4338ca 100%);
+  box-shadow: 0 10px 30px -10px rgba(124, 58, 237, 0.8);
+  transition: transform 0.15s, filter 0.2s, box-shadow 0.2s;
+}
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); }
+.auth-submit:active:not(:disabled) { transform: translateY(0); }
+.auth-submit:focus-visible { outline: 2px solid #a78bfa; outline-offset: 3px; }
+.auth-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+.auth-submit__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: login-spin 0.7s linear infinite;
+}
+
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes login-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .login *, .login *::before, .login *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Laptops de poca altura: se oculta el texto de apoyo para que todo quepa sin scroll */
+@media (min-width: 960px) and (max-height: 800px) {
+  .login__lead { display: none; }
+  .login__brand { margin-bottom: 1rem; }
+  .login .smooth-input { padding: 0.7rem 0.9rem; }
+  .login .auth-form { gap: 0.9rem; }
+}

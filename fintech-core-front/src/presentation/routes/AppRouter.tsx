@@ -12,20 +12,34 @@ export const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <MainLayout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            
-            {/* Rutas Protegidas mediante AuthGuard con Outlet */}
-            <Route element={<AuthGuard />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Route>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </MainLayout>
+          {/* Páginas públicas de autenticación: pantalla completa, sin navbar */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Rutas Protegidas mediante AuthGuard con Outlet (con navbar) */}
+          <Route element={<AuthGuard />}>
+            <Route
+              path="/dashboard"
+              element={
+                <MainLayout>
+                  <DashboardPage />
+                </MainLayout>
+              }
+            />
+          </Route>
+
+          <Route
+            path="*"
+            element={
+              <MainLayout>
+                <NotFoundPage />
+              </MainLayout>
+            }
+          />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Account } from '../../../domain/entities/Account';
 import { AccountCard } from './AccountCard';
+import './account.css';
 
 interface AccountListProps {
   accounts: Account[];
@@ -20,7 +21,7 @@ export const AccountList: React.FC<AccountListProps> = ({
   onUnfreezeAccount,
 }) => {
   return (
-    <div className="account-list-grid">
+    <div className="acc-grid">
       {accounts.map((account) => {
         // Verificar si el usuario actual es el propietario según backend DTO
         const isOwner = currentUserId ? account.userId === currentUserId : true;

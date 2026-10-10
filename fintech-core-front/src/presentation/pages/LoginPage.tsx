@@ -1,11 +1,38 @@
 import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { Button } from '../components/common/Button';
-import { Input } from '../components/common/Input';
-import { ErrorAlert } from '../components/common/ErrorAlert';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { AuthShell } from '../components/layout/AuthShell';
+import { AuthField } from '../components/common/AuthField';
+import type { BentoCardProps } from '../components/effects/MagicBento';
 import { LoginSchema } from '../../infrastructure/validation/AuthSchemas';
 import { FieldError } from '../../domain/errors/ApiError';
+
+const LOGIN_CARDS: BentoCardProps[] = [
+  {
+    color: '#120F17',
+    label: 'Empieza hoy',
+    title: 'Tu cuenta, lista al instante',
+    description: 'Regístrate y recibe tu primera cuenta en el momento.',
+  },
+  {
+    color: '#120F17',
+    label: 'Envía dinero',
+    title: 'Transfiere en pocos clics',
+    description: 'A cualquier cuenta de la plataforma, sin filas ni papeleo.',
+  },
+  {
+    color: '#120F17',
+    label: 'Tú tienes el control',
+    title: 'Congela tu cuenta cuando quieras',
+    description: 'Si algo no te cuadra, bloquea los retiros y vuelve a activarla.',
+  },
+  {
+    color: '#120F17',
+    label: 'Todo a la vista',
+    title: 'Cada movimiento, claro',
+    description: 'Saldos al día e historial ordenado, siempre contigo.',
+  },
+];
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -26,7 +53,7 @@ export const LoginPage: React.FC = () => {
     const validationResult = LoginSchema.safeParse({ email, password });
     if (!validationResult.success) {
       const errorsMap: Record<string, string> = {};
-      validationResult.error.errors.forEach((err) => {
+      validationResult.error.issues.forEach((err) => {
         const fieldName = err.path[0];
         if (typeof fieldName === 'string') {
           errorsMap[fieldName] = err.message;
@@ -50,7 +77,7 @@ export const LoginPage: React.FC = () => {
         });
         setFieldErrors(errorsMap);
       }
-      
+
       const message = err instanceof Error ? err.message : 'Credenciales inválidas. Por favor verifique sus datos.';
       setGeneralError(message);
     } finally {
@@ -59,35 +86,51 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="page-card">
-      <h2>Iniciar Sesión</h2>
-      <ErrorAlert error={generalError} />
-      <form onSubmit={handleSubmit} noValidate>
-        <Input
+    <AuthShell
+      headline={<>Tu dinero, <span>bajo control</span> en cada movimiento.</>}
+      lead="Gestiona cuentas, deposita, retira y transfiere con la precisión de un core transaccional."
+      cards={LOGIN_CARDS}
+    >
+      <header className="auth-card__header">
+        <h1>Bienvenido de nuevo</h1>
+        <p>Ingresa tus credenciales para acceder a tu panel financiero.</p>
+      </header>
+
+      {generalError && <div className="auth-alert" role="alert">{generalError}</div>}
+
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <AuthField
           label="Correo Electrónico"
           type="email"
+          placeholder="tucorreo@ejemplo.com"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={fieldErrors['email']}
           disabled={isSubmitting}
           required
         />
-        <Input
+        <AuthField
           label="Contraseña"
           type="password"
+          placeholder="Tu contraseña"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={fieldErrors['password']}
           disabled={isSubmitting}
           required
         />
-        <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
-          Ingresar
-        </Button>
+
+        <button type="submit" className="auth-submit" disabled={isSubmitting} aria-busy={isSubmitting}>
+          {isSubmitting && <span className="auth-submit__spinner" aria-hidden />}
+          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+        </button>
       </form>
-      <p style={{ marginTop: '1rem' }}>
+
+      <p className="auth-card__footer">
         ¿No tienes cuenta? <Link to="/register">Regístrate aquí</Link>
       </p>
-    </div>
+    </AuthShell>
   );
 };

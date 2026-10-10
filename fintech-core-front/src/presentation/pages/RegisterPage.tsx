@@ -1,11 +1,38 @@
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { Button } from '../components/common/Button';
-import { Input } from '../components/common/Input';
-import { ErrorAlert } from '../components/common/ErrorAlert';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { AuthShell } from '../components/layout/AuthShell';
+import { AuthField } from '../components/common/AuthField';
+import type { BentoCardProps } from '../components/effects/MagicBento';
 import { RegisterUserSchema } from '../../infrastructure/validation/AuthSchemas';
 import { FieldError } from '../../domain/errors/ApiError';
+
+const REGISTER_CARDS: BentoCardProps[] = [
+  {
+    color: '#120F17',
+    label: 'Rápido',
+    title: 'Regístrate en un minuto',
+    description: 'Solo necesitas tu nombre, tu correo y una contraseña.',
+  },
+  {
+    color: '#120F17',
+    label: 'Primera cuenta',
+    title: 'Tu cuenta se crea sola',
+    description: 'Al terminar el registro ya tienes una cuenta lista para usar.',
+  },
+  {
+    color: '#120F17',
+    label: 'Protegido',
+    title: 'Tu contraseña, a salvo',
+    description: 'Se guarda con hash bcrypt, nunca en texto plano.',
+  },
+  {
+    color: '#120F17',
+    label: 'Todo en uno',
+    title: 'Deposita, retira y transfiere',
+    description: 'Todas tus operaciones en un solo lugar, desde el primer día.',
+  },
+];
 
 export const RegisterPage: React.FC = () => {
   const { register } = useAuth();
@@ -19,6 +46,16 @@ export const RegisterPage: React.FC = () => {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    };
+  }, []);
+
+  // Se bloquea el formulario durante el envío y también mientras espera la redirección.
+  const isLocked = isSubmitting || Boolean(successMessage);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFieldErrors({});
@@ -29,7 +66,7 @@ export const RegisterPage: React.FC = () => {
     const validationResult = RegisterUserSchema.safeParse({ name, email, password });
     if (!validationResult.success) {
       const errorsMap: Record<string, string> = {};
-      validationResult.error.errors.forEach((err) => {
+      validationResult.error.issues.forEach((err) => {
         const fieldName = err.path[0];
         if (typeof fieldName === 'string') {
           errorsMap[fieldName] = err.message;
@@ -39,13 +76,12 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
-    // Bloquear el formulario durante el envío
     setIsSubmitting(true);
 
     try {
       await register({ name, email, password });
       setSuccessMessage('Usuario registrado con éxito. Serás redirigido a iniciar sesión...');
-      setTimeout(() => {
+      redirectTimer.current = setTimeout(() => {
         navigate('/login');
       }, 1500);
     } catch (err: unknown) {
@@ -65,45 +101,66 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="page-card">
-      <h2>Registro de Usuario</h2>
-      {successMessage && <div className="alert alert-success">{successMessage}</div>}
-      <ErrorAlert error={generalError} />
-      <form onSubmit={handleSubmit} noValidate>
-        <Input
+    <AuthShell
+      headline={<>Abre tu cuenta y <span>empieza a moverte</span>.</>}
+      lead="Crea tu perfil en un minuto y gestiona tu dinero con total claridad."
+      cards={REGISTER_CARDS}
+    >
+      <header className="auth-card__header">
+        <h1>Crea tu cuenta</h1>
+        <p>Completa tus datos para empezar a usar la plataforma.</p>
+      </header>
+
+      {successMessage && (
+        <div className="auth-alert auth-alert--success" role="status">{successMessage}</div>
+      )}
+      {generalError && <div className="auth-alert" role="alert">{generalError}</div>}
+
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <AuthField
           label="Nombre Completo"
           type="text"
+          placeholder="Como aparece en tu documento"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           error={fieldErrors['name']}
-          disabled={isSubmitting}
+          disabled={isLocked}
           required
         />
-        <Input
+        <AuthField
           label="Correo Electrónico"
           type="email"
+          placeholder="tucorreo@ejemplo.com"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={fieldErrors['email']}
-          disabled={isSubmitting}
+          disabled={isLocked}
           required
         />
-        <Input
+        <AuthField
           label="Contraseña"
           type="password"
+          placeholder="Crea una contraseña segura"
+          hint="Mínimo 8 caracteres, una mayúscula y un número."
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={fieldErrors['password']}
-          disabled={isSubmitting}
+          disabled={isLocked}
           required
         />
-        <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
-          Registrarse
-        </Button>
+
+        <button type="submit" className="auth-submit" disabled={isLocked} aria-busy={isSubmitting} aria-label="Registrarse">
+          {isSubmitting && <span className="auth-submit__spinner" aria-hidden />}
+          {isSubmitting ? 'Registrando…' : 'Registrarse'}
+        </button>
       </form>
-      <p style={{ marginTop: '1rem' }}>
+
+      <p className="auth-card__footer">
         ¿Ya tienes cuenta? <Link to="/login">Inicia sesión aquí</Link>
       </p>
-    </div>
+    </AuthShell>
   );
 };

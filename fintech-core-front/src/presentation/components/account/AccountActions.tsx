@@ -1,6 +1,6 @@
 import React from 'react';
 import { AccountStatus } from '../../../domain/entities/Account';
-import { Button } from '../common/Button';
+import './account.css';
 
 interface AccountActionsProps {
   status: AccountStatus;
@@ -18,36 +18,26 @@ export const AccountActions: React.FC<AccountActionsProps> = ({
   onUnfreeze,
 }) => {
   if (!isOwner) {
-    return <span className="text-muted small">No autorizado para gestionar</span>;
+    return <span className="acc-muted">No autorizado para gestionar</span>;
   }
 
+  const isActive = status === 'ACTIVE';
+
   return (
-    <div className="account-actions">
-      {status === 'ACTIVE' ? (
-        <Button
-          variant="secondary"
-          isLoading={isLoading}
-          disabled={isLoading}
-          onClick={(e) => {
-            e.stopPropagation();
-            onFreeze();
-          }}
-        >
-          Congelar
-        </Button>
-      ) : (
-        <Button
-          variant="primary"
-          isLoading={isLoading}
-          disabled={isLoading}
-          onClick={(e) => {
-            e.stopPropagation();
-            onUnfreeze();
-          }}
-        >
-          Descongelar
-        </Button>
-      )}
+    <div className="acc-actions">
+      <button
+        type="button"
+        className={`acc-action${isActive ? '' : ' acc-action--primary'}`}
+        disabled={isLoading}
+        aria-busy={isLoading}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isActive) onFreeze();
+          else onUnfreeze();
+        }}
+      >
+        {isLoading ? 'Procesando…' : isActive ? 'Congelar' : 'Descongelar'}
+      </button>
     </div>
   );
 };

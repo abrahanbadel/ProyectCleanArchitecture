@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAccount } from '../hooks/useAccount';
 import { useTransaction } from '../hooks/useTransaction';
@@ -12,6 +12,67 @@ import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { EmptyState } from '../components/common/EmptyState';
+import './DashboardPage.css';
+
+/* ---------- Utilidades de presentación ---------- */
+
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Buenos días';
+  if (hour < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+};
+
+const Icon = ({ children }: { children: ReactNode }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    {children}
+  </svg>
+);
+
+const DepositIcon = () => (
+  <Icon><path d="M12 4v12" /><path d="M7 11l5 5 5-5" /><path d="M5 20h14" /></Icon>
+);
+const WithdrawIcon = () => (
+  <Icon><path d="M12 20V8" /><path d="M7 13l5-5 5 5" /><path d="M5 4h14" /></Icon>
+);
+const TransferIcon = () => (
+  <Icon><path d="M4 8h13" /><path d="M13 4l4 4-4 4" /><path d="M20 16H7" /><path d="M11 12l-4 4 4 4" /></Icon>
+);
+const PlusIcon = () => (
+  <Icon><path d="M12 5v14" /><path d="M5 12h14" /></Icon>
+);
+
+interface ActionTileProps {
+  label: string;
+  hint: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  primary?: boolean;
+}
+
+const ActionTile: React.FC<ActionTileProps> = ({ label, hint, icon, onClick, disabled, loading, primary }) => (
+  <button
+    type="button"
+    className={`dash-tile${primary ? ' dash-tile--primary' : ''}`}
+    onClick={onClick}
+    disabled={disabled || loading}
+    aria-busy={loading}
+    aria-label={label}
+  >
+    <span className="dash-tile__icon">
+      {loading ? <span className="dash-spinner" aria-hidden /> : icon}
+    </span>
+    <span className="dash-tile__text">
+      <strong>{label}</strong>
+      <small>{hint}</small>
+    </span>
+  </button>
+);
+
+/* ---------- Página ---------- */
 
 export const DashboardPage: React.FC = () => {
   const { session } = useAuth();
@@ -109,43 +170,82 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  /* ---- Datos derivados para la vista ---- */
+  const fullName = session?.user?.name?.trim();
+  const shownName = fullName
+    ? fullName.split(/\s+/)[0]
+    : (session?.user?.email ?? '').split('@')[0];
+
+  const hasAccounts = accounts.length > 0;
+  const isInitialLoading = accountStatus === 'loading';
+
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-header">
-        <div>
-          <h2>Panel Principal</h2>
-          <p className="subtitle">
-            Bienvenido, <strong>{session?.user?.name || session?.user?.email}</strong>
+    <div className="dash">
+      {/* Banner de bienvenida */}
+      <section className="dash-hero">
+        <div className="dash-hero__body">
+          <p className="dash-hero__eyebrow">Panel Principal</p>
+          <h1 className="dash-hero__title">
+            {getGreeting()}, <span>{shownName}</span>
+          </h1>
+          <p className="dash-hero__lead">
+            Consulta tus saldos, mueve tu dinero y revisa cada movimiento desde un solo lugar.
           </p>
         </div>
-        <div className="header-actions">
-          <Button
-            variant="secondary"
-            disabled={accounts.length === 0}
-            onClick={() => handleOpenTransfer()}
-          >
-            Transferencia
-          </Button>
-          <Button
-            variant="primary"
-            isLoading={accountActionLoading}
-            disabled={accountActionLoading}
-            onClick={() => createAccount()}
-          >
-            + Nueva Cuenta
-          </Button>
-        </div>
-      </div>
+
+        {accountStatus === 'success' && (
+          <div className="dash-hero__chip" aria-label="Resumen de cuentas">
+            <strong>{accounts.length}</strong>
+            <span>{accounts.length === 1 ? 'cuenta a tu nombre' : 'cuentas a tu nombre'}</span>
+          </div>
+        )}
+      </section>
+
+      {/* Acciones rápidas */}
+      <section className="dash-actions" aria-label="Acciones rápidas">
+        <ActionTile
+          label="Depósito"
+          hint="Suma fondos a una cuenta"
+          icon={<DepositIcon />}
+          disabled={!hasAccounts || isInitialLoading}
+          onClick={() => handleOpenDeposit()}
+        />
+        <ActionTile
+          label="Retiro"
+          hint="Retira fondos disponibles"
+          icon={<WithdrawIcon />}
+          disabled={!hasAccounts || isInitialLoading}
+          onClick={() => handleOpenWithdraw()}
+        />
+        <ActionTile
+          label="Transferencia"
+          hint="Envía dinero a otra cuenta"
+          icon={<TransferIcon />}
+          disabled={!hasAccounts || isInitialLoading}
+          onClick={() => handleOpenTransfer()}
+        />
+        <ActionTile
+          label="Nueva cuenta"
+          hint="Abre otra cuenta a tu nombre"
+          icon={<PlusIcon />}
+          primary
+          loading={accountActionLoading}
+          disabled={isInitialLoading}
+          onClick={() => createAccount()}
+        />
+      </section>
 
       <ErrorAlert error={accountActionError} />
 
-      {/* Manejo explicito de los 4 estados principales de UI */}
+      {/* Manejo explícito de los 4 estados principales de UI */}
       {accountStatus === 'loading' && (
-        <LoadingSpinner message="Cargando tus cuentas bancarias..." />
+        <div className="dash-card">
+          <LoadingSpinner message="Cargando tus cuentas bancarias..." />
+        </div>
       )}
 
       {accountStatus === 'error' && (
-        <div className="page-card text-center" style={{ marginTop: '1rem' }}>
+        <div className="dash-card dash-card--center">
           <ErrorAlert error={accountError} />
           <Button variant="primary" onClick={retryAccounts} style={{ marginTop: '1rem' }}>
             Reintentar Consulta
@@ -154,7 +254,7 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {accountStatus === 'empty' && (
-        <div className="page-card" style={{ marginTop: '1rem' }}>
+        <div className="dash-card">
           <EmptyState
             title="Aún no tienes cuentas creadas"
             description="Crea tu primera cuenta bancaria en segundos para comenzar a realizar depósitos y transferencias."
@@ -166,35 +266,25 @@ export const DashboardPage: React.FC = () => {
 
       {accountStatus === 'success' && (
         <>
-          <AccountSummaryCard accounts={accounts} />
+          <section className="dash-block" aria-label="Resumen de saldos">
+            <AccountSummaryCard accounts={accounts} />
+          </section>
 
-          <div className="quick-actions-bar">
-            <span>Acciones Rápidas:</span>
-            <div className="action-buttons">
-              <Button variant="secondary" onClick={() => handleOpenDeposit()}>
-                Depósito
-              </Button>
-              <Button variant="secondary" onClick={() => handleOpenWithdraw()}>
-                Retiro
-              </Button>
-              <Button variant="secondary" onClick={() => handleOpenTransfer()}>
-                Transferencia
-              </Button>
+          <section className="dash-block" aria-labelledby="dash-accounts-title">
+            <div className="dash-section">
+              <h2 id="dash-accounts-title">Tus cuentas bancarias</h2>
+              <span className="dash-badge">{accounts.length}</span>
             </div>
-          </div>
 
-          <div className="section-header">
-            <h3>Tus Cuentas Bancarias</h3>
-          </div>
-
-          <AccountList
-            accounts={accounts}
-            currentUserId={session?.user?.id}
-            isActionLoading={accountActionLoading}
-            onSelectAccount={selectAccount}
-            onFreezeAccount={freezeAccount}
-            onUnfreezeAccount={unfreezeAccount}
-          />
+            <AccountList
+              accounts={accounts}
+              currentUserId={session?.user?.id}
+              isActionLoading={accountActionLoading}
+              onSelectAccount={selectAccount}
+              onFreezeAccount={freezeAccount}
+              onUnfreezeAccount={unfreezeAccount}
+            />
+          </section>
         </>
       )}
 
@@ -206,7 +296,7 @@ export const DashboardPage: React.FC = () => {
       />
 
       {/* Modales de Transacciones */}
-      {accounts.length > 0 && (
+      {hasAccounts && (
         <>
           <DepositFormModal
             accounts={accounts}

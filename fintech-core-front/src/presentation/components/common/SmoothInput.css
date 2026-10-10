@@ -1,0 +1,67 @@
+.smooth-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--field-border, rgba(255, 255, 255, 0.12));
+  background: var(--field-bg, rgba(255, 255, 255, 0.04));
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.smooth-input:focus-within {
+  border-color: var(--field-focus, #8b5cf6);
+  box-shadow: 0 0 0 4px var(--field-ring, rgba(139, 92, 246, 0.2));
+  background: rgba(255, 255, 255, 0.06);
+}
+.smooth-input--error,
+.smooth-input--error:focus-within {
+  border-color: var(--field-error, #f87171);
+}
+.smooth-input--error:focus-within {
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.2);
+}
+
+.smooth-input__container {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  caret-color: transparent; /* el cursor real se oculta; se dibuja el animado */
+}
+.smooth-input__field {
+  grid-area: 1 / 1;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+.smooth-input__field::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+.smooth-input__field:-webkit-autofill {
+  -webkit-text-fill-color: #fff;
+  transition: background-color 9999s ease-out 0s;
+}
+.smooth-input__measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+.smooth-input__caret {
+  grid-area: 1 / 1;
+  align-self: center;
+  width: 2px;
+  height: 1.1em;
+  border-radius: 2px;
+  background: var(--field-caret, #a78bfa);
+  pointer-events: none;
+}
