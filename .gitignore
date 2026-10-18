@@ -35,3 +35,13 @@ Thumbs.db
 *.sw?
 .vscode/*
 !.vscode/extensions.json
+
+# Archivos internos del curso (no publicar en GitHub)
+arquitectura.md
+"ESPECIFICACIÓN DE REQUISITOS DEL SISTEMA.md"
+ESPECIFICACI*.md
+REGLAS-IA-CleanArchitecture.md
+TAREAS-CURSO-CleanArchitecture.md
+.agents/
+.cursor/rules/
+docs/

@@ -27,7 +27,8 @@ CREATE TABLE "Account" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" UUID NOT NULL,
 
-    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Account_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Account_balance_non_negative" CHECK ("balance" >= 0)
 );
 
 -- CreateTable

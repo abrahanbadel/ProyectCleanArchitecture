@@ -1,16 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '../../generated/prisma/client';
 import { DomainError } from '../../domain/exceptions/DomainError';
-import { InsufficientBalanceError, AccountNotFoundError } from '../../domain/exceptions/FinancialError';
+import {
+  InsufficientBalanceError,
+  AccountNotFoundError,
+  ForbiddenAccountAccessError,
+} from '../../domain/exceptions/FinancialError';
 import { InvalidCredentialsError, UserAlreadyExistsError } from '../../domain/exceptions/UserError';
 
 export const errorHandler = (
   err: Error,
   _req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ): void => {
-  // 1. Mapeo de Excepciones Específicas de Dominio
   if (err instanceof InsufficientBalanceError) {
     res.status(400).json({ status: 'fail', code: 'INSUFFICIENT_FUNDS', message: err.message });
     return;
@@ -26,6 +29,11 @@ export const errorHandler = (
     return;
   }
 
+  if (err instanceof ForbiddenAccountAccessError) {
+    res.status(403).json({ status: 'fail', code: 'FORBIDDEN_ACCOUNT_ACCESS', message: err.message });
+    return;
+  }
+
   if (err instanceof AccountNotFoundError) {
     res.status(404).json({ status: 'fail', code: 'ACCOUNT_NOT_FOUND', message: err.message });
     return;
@@ -36,7 +44,6 @@ export const errorHandler = (
     return;
   }
 
-  // 2. Mapeo de Excepciones Conocidas de Prisma (ORM / Base de Datos)
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
       res.status(409).json({
@@ -56,7 +63,6 @@ export const errorHandler = (
     }
   }
 
-  // 3. Fallos Inesperados / Errores de Infraestructura no Controlados
   console.error('[UNHANDLED CRITICAL ERROR]:', err);
 
   res.status(500).json({

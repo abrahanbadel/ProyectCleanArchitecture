@@ -1,32 +1,32 @@
-import { AccountRepository } from "../domain/repositories/Repositories";
+import { BankAccountPersistence } from "../domain/repositories/Repositories";
 import { Decimal } from "decimal.js";
-import { Account } from "../domain/entities/Account";
+import { BankAccount } from "../domain/entities/Account";
 import { CreateAccountInputDTO, AccountOutputDTO } from "./dto/AccountDTOs";
 import { InvalidAmountError } from "../domain/exceptions/FinancialError";
 
-export class CreateAccountUseCase {
-  constructor(private readonly accountRepository: AccountRepository) { }
+export class AccountCreationService {
+  constructor(private readonly bankRepo: BankAccountPersistence) { }
 
-  async execute(input: CreateAccountInputDTO): Promise<AccountOutputDTO> {
-    const initialAmount = input.initialBalance ?? 0;
+  async execute(payload: CreateAccountInputDTO): Promise<AccountOutputDTO> {
+    const startBalance = payload.initialBalance ?? 0;
 
-    if (initialAmount < 0) {
+    if (startBalance < 0) {
       throw new InvalidAmountError("El monto de la operación debe ser un valor estricto mayor a cero.");
     }
 
-    const accountNumber = `ACC-${Math.floor(100000000 + Math.random() * 900000000)}`;
+    const iban = `ACC-${Math.floor(100000000 + Math.random() * 900000000)}`;
 
-    const newAccount = Account.create({
-      id: crypto.randomUUID(),
-      accountNumber,
-      balance: new Decimal(initialAmount),
-      userId: input.userId,
-      status: "ACTIVE",
-      createdAt: new Date()
+    const newAccount = BankAccount.initialize({
+      uid: crypto.randomUUID(),
+      iban,
+      currentBalance: new Decimal(startBalance),
+      ownerId: payload.userId,
+      accountStatus: "ACTIVE",
+      openedAt: new Date()
     });
 
-    await this.accountRepository.save(newAccount);
-    
+    await this.bankRepo.save(newAccount);
+
     return {
       id: newAccount.id,
       accountNumber: newAccount.accountNumber,

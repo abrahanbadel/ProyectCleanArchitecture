@@ -1,22 +1,24 @@
-{
+﻿{
   "name": "fintech-core-app",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "tsx watch src/server.ts",
     "build": "tsc --project tsconfig.json --outDir dist --rootDir ./src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run tests/infrastructure",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev"
   },
   "keywords": [],
-  "type": "commonjs",
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
-    "@types/decimal.js": "^0.0.32",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.2.0",
@@ -42,4 +44,5 @@
     "pg": "^8.23.0",
     "zod": "^4.6.2"
   }
+  
 }

@@ -1,59 +1,60 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RegisterUserUseCase } from '../../src/use-cases/RegisterUserUseCase';
-import { UserRepository, AccountRepository } from '../../src/domain/repositories/Repositories';
+import { UserRegistrationService } from '../../src/use-cases/RegisterUserUseCase';
+import {
+  UserPersistence,
+  BankAccountPersistence,
+} from '../../src/domain/repositories/Repositories';
 import { PasswordHasher } from '../../src/domain/services/PasswordHasher';
 import { User } from '../../src/domain/entities/User';
 import { UserAlreadyExistsError } from '../../src/domain/exceptions/UserError';
 
-describe('RegisterUserUseCase', () => {
-  let mockUserRepo: UserRepository;
-  let mockAccountRepo: AccountRepository;
-  let mockPasswordHasher: PasswordHasher;
-  let useCase: RegisterUserUseCase;
+describe('UserRegistrationService', () => {
+  let userRepo: UserPersistence;
+  let bankRepo: BankAccountPersistence;
+  let pwdHasher: PasswordHasher;
+  let service: UserRegistrationService;
 
   beforeEach(() => {
-    mockUserRepo = {
-      findById: vi.fn(),
-      findByEmail: vi.fn(),
-      findByFullName: vi.fn(),
-      save: vi.fn(),
+    userRepo = {
+      getById: vi.fn(),
+      getByEmail: vi.fn(),
+      searchByName: vi.fn(),
+      upsert: vi.fn(),
     };
-    mockAccountRepo = {
-      findById: vi.fn(),
-      findByAccountNumber: vi.fn(),
-      findByUserId: vi.fn(),
+    bankRepo = {
+      getById: vi.fn(),
+      getByIban: vi.fn(),
+      getByOwner: vi.fn(),
       save: vi.fn().mockResolvedValue(undefined),
-      update: vi.fn().mockResolvedValue(undefined),
-      executeTransaction: vi.fn(),
+      persist: vi.fn(),
+      recordMovement: vi.fn(),
     };
-    mockPasswordHasher = {
+    pwdHasher = {
       hash: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
       compare: vi.fn().mockResolvedValue(true),
     };
-    useCase = new RegisterUserUseCase(mockUserRepo, mockPasswordHasher, mockAccountRepo);
+    service = new UserRegistrationService(userRepo, pwdHasher, bankRepo);
   });
 
-  it('Escenario 1: Registro exitoso crea usuario y cuenta inicial', async () => {
-    vi.mocked(mockUserRepo.findByEmail).mockResolvedValue(null);
-    vi.mocked(mockUserRepo.save).mockImplementation(async (user: User) => user);
+  it('RF-1.1 Escenario 1: registro exitoso crea usuario y cuenta inicial', async () => {
+    vi.mocked(userRepo.getByEmail).mockResolvedValue(null);
+    vi.mocked(userRepo.upsert).mockImplementation(async (user: User) => user);
 
-    const input = {
+    const result = await service.execute({
       name: 'Carlos Gomez',
       email: 'carlos@example.com',
       password: 'Password123',
-    };
-
-    const result = await useCase.execute(input);
+    });
 
     expect(result.id).toBeDefined();
     expect(result.name).toBe('Carlos Gomez');
     expect(result.email).toBe('carlos@example.com');
-    expect(mockPasswordHasher.hash).toHaveBeenCalledWith('Password123');
-    expect(mockUserRepo.save).toHaveBeenCalledOnce();
-    expect(mockAccountRepo.save).toHaveBeenCalledOnce();
+    expect(pwdHasher.hash).toHaveBeenCalledWith('Password123');
+    expect(userRepo.upsert).toHaveBeenCalledOnce();
+    expect(bankRepo.save).toHaveBeenCalledOnce();
   });
 
-  it('Escenario 2: Lanza UserAlreadyExistsError si el correo ya está registrado', async () => {
+  it('RF-1.1 Escenario 2: rechaza correo ya registrado', async () => {
     const existing = User.create({
       id: 'existing-id',
       fullName: 'Carlos Gomez',
@@ -61,16 +62,17 @@ describe('RegisterUserUseCase', () => {
       passwordHash: 'hashed',
       createdAt: new Date(),
     });
-    vi.mocked(mockUserRepo.findByEmail).mockResolvedValue(existing);
+    vi.mocked(userRepo.getByEmail).mockResolvedValue(existing);
 
-    const input = {
-      name: 'Carlos Gomez',
-      email: 'carlos@example.com',
-      password: 'Password123',
-    };
+    await expect(
+      service.execute({
+        name: 'Carlos Gomez',
+        email: 'carlos@example.com',
+        password: 'Password123',
+      }),
+    ).rejects.toThrow(UserAlreadyExistsError);
 
-    await expect(useCase.execute(input)).rejects.toThrow(UserAlreadyExistsError);
-    expect(mockUserRepo.save).not.toHaveBeenCalled();
-    expect(mockAccountRepo.save).not.toHaveBeenCalled();
+    expect(userRepo.upsert).not.toHaveBeenCalled();
+    expect(bankRepo.save).not.toHaveBeenCalled();
   });
 });

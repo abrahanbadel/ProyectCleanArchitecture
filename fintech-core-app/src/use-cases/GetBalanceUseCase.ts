@@ -1,15 +1,21 @@
-import { AccountRepository } from "../domain/repositories/Repositories";
-import { AccountNotFoundError } from "../domain/exceptions/FinancialError";
-import { GetBalanceInputDTO, AccountOutputDTO } from "./dto/AccountDTOs";
+import { BankAccountPersistence } from '../domain/repositories/Repositories';
+import {
+  AccountNotFoundError,
+  ForbiddenAccountAccessError,
+} from '../domain/exceptions/FinancialError';
+import { GetBalanceInputDTO, AccountOutputDTO } from './dto/AccountDTOs';
 
-export class GetBalanceUseCase {
-  constructor(private readonly accountRepository: AccountRepository) { }
+export class BalanceInquiryService {
+  constructor(private readonly bankRepo: BankAccountPersistence) {}
 
-  async execute(input: GetBalanceInputDTO): Promise<AccountOutputDTO> {
-    const account = await this.accountRepository.findById(input.accountId);
+  async execute(payload: GetBalanceInputDTO, requesterId: string): Promise<AccountOutputDTO> {
+    const account = await this.bankRepo.getById(payload.accountId);
 
     if (!account) {
-      throw new AccountNotFoundError(input.accountId);
+      throw new AccountNotFoundError(payload.accountId);
+    }
+    if (account.userId !== requesterId) {
+      throw new ForbiddenAccountAccessError(payload.accountId);
     }
 
     return {

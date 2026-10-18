@@ -5,72 +5,68 @@ import {
   InvalidAmountError
 } from '../exceptions/FinancialError';
 
-export type AccountStatus = 'ACTIVE' | 'FROZEN';
+export type BankAccountStatus = 'ACTIVE' | 'FROZEN';
 
-export interface AccountProps {
-  id: string;
-  accountNumber: string;
-  balance: Decimal; // Blindaje contra el problema de punto flotante
-  userId: string;
-  status: AccountStatus;
-  createdAt: Date;
+export interface BankAccountProps {
+  uid: string;
+  iban: string;
+  currentBalance: Decimal;
+  ownerId: string;
+  accountStatus: BankAccountStatus;
+  openedAt: Date;
 }
 
-export class Account {
-  private props: AccountProps;
+export class BankAccount {
+  private readonly data: BankAccountProps;
 
-  private constructor(props: AccountProps) {
-    this.props = props;
+  private constructor(props: BankAccountProps) {
+    this.data = props;
   }
 
-  public static create(props: AccountProps): Account {
-    // Invariante Financiera: El sistema prohíbe aperturas de cuentas con deudas iniciales.
-    if (props.balance.isNegative()) {
-      throw new InvalidAmountError('Una cuenta no puede ser inicializada con saldo negativo.');
+  public static initialize(props: BankAccountProps): BankAccount {
+    if (props.currentBalance.isNegative()) {
+      throw new InvalidAmountError('No se permite la apertura de cuentas con saldo negativo.');
     }
-    return new Account(props);
+    return new BankAccount(props);
   }
 
-  get id(): string { return this.props.id; }
-  get accountNumber(): string { return this.props.accountNumber; }
-  get balance(): Decimal { return this.props.balance; }
-  get userId(): string { return this.props.userId; }
-  get status(): AccountStatus { return this.props.status; }
-  get createdAt(): Date { return this.props.createdAt; }
+  get id(): string { return this.data.uid; }
+  get accountNumber(): string { return this.data.iban; }
+  get balance(): Decimal { return this.data.currentBalance; }
+  get userId(): string { return this.data.ownerId; }
+  get status(): BankAccountStatus { return this.data.accountStatus; }
+  get createdAt(): Date { return this.data.openedAt; }
 
-  // --- COMPORTAMIENTOS DEL DOMINIO ---
-
-  public deposit(amount: Decimal): void {
+  public applyDeposit(amount: Decimal): void {
     if (amount.lte(0)) {
-      throw new InvalidAmountError('El monto del depósito debe ser estrictamente mayor a cero.');
+      throw new InvalidAmountError('El monto a depositar debe ser positivo.');
     }
-    // Mutación controlada internamente
-    this.props.balance = this.props.balance.plus(amount);
 
-    if (this.props.status === 'FROZEN') {
+    if (this.data.accountStatus === 'FROZEN') {
       throw new AccountFrozenError(this.id);
     }
+
+    this.data.currentBalance = this.data.currentBalance.plus(amount);
   }
 
-
-  public withdraw(amount: Decimal): void {
+  public applyWithdrawal(amount: Decimal): void {
     if (amount.lte(0)) {
-      throw new InvalidAmountError('El monto del retiro debe ser estrictamente mayor a cero.');
+      throw new InvalidAmountError('El monto a retirar debe ser positivo.');
     }
-    if (this.props.status === 'FROZEN') {
+    if (this.data.accountStatus === 'FROZEN') {
       throw new AccountFrozenError(this.id);
     }
-    if (this.props.balance.lessThan(amount)) {
+    if (this.data.currentBalance.lessThan(amount)) {
       throw new InsufficientBalanceError(this.id);
     }
-    this.props.balance = this.props.balance.minus(amount);
+    this.data.currentBalance = this.data.currentBalance.minus(amount);
   }
 
-  public freeze(): void {
-    this.props.status = 'FROZEN';
+  public setFrozen(): void {
+    this.data.accountStatus = 'FROZEN';
   }
 
-  public unfreeze(): void {
-    this.props.status = 'ACTIVE';
+  public setActive(): void {
+    this.data.accountStatus = 'ACTIVE';
   }
 }

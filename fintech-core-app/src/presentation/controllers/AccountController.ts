@@ -1,39 +1,38 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middlewares/AuthMiddleware';
-import { GetUserAccountsUseCase } from '../../use-cases/GetUserAccountsUseCase';
-import { CreateAccountUseCase } from '../../use-cases/CreateAccountUseCase';
-import { GetBalanceUseCase } from '../../use-cases/GetBalanceUseCase';
-import { FreezeAccountUseCase } from '../../use-cases/FreezeAccountUseCase';
-import { UnfreezeAccountUseCase } from '../../use-cases/UnfreezeAccountUseCase';
+import { AccountCreationService } from '../../use-cases/CreateAccountUseCase';
+import { AccountProviderService } from '../../use-cases/GetUserAccountsUseCase';
+import { BalanceInquiryService } from '../../use-cases/GetBalanceUseCase';
+import { AccountFreezeService } from '../../use-cases/FreezeAccountUseCase';
+import { AccountReactivationService } from '../../use-cases/UnfreezeAccountUseCase';
 
 export class AccountController {
   constructor(
-    private readonly createAccountUseCase: CreateAccountUseCase,
-    private readonly getUserAccountsUseCase: GetUserAccountsUseCase,
-    private readonly getBalanceUseCase?: GetBalanceUseCase,
-    private readonly freezeAccountUseCase?: FreezeAccountUseCase,
-    private readonly unfreezeAccountUseCase?: UnfreezeAccountUseCase
+    private readonly accountCreator: AccountCreationService,
+    private readonly accountProvider: AccountProviderService,
+    private readonly balanceProvider: BalanceInquiryService,
+    private readonly freezeService: AccountFreezeService,
+    private readonly unfreezeService: AccountReactivationService,
   ) {}
 
-  createAccount = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processCreate = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;
-      const newAccount = await this.createAccountUseCase.execute({ userId });
+      const account = await this.accountCreator.execute({ userId });
 
       res.status(201).json({
         status: 'success',
-        data: newAccount,
+        data: account,
       });
     } catch (error) {
       next(error);
     }
   };
 
-  getUserAccounts = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processGetAccounts = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Extrae el ID del usuario directamente desde la sesión autenticada en el token
       const userId = req.user!.userId;
-      const accounts = await this.getUserAccountsUseCase.execute({ userId });
+      const accounts = await this.accountProvider.execute({ userId });
 
       res.status(200).json({
         status: 'success',
@@ -44,18 +43,15 @@ export class AccountController {
     }
   };
 
-  getBalance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processGetBalance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const rawAccountId = req.params.accountId;
-      const accountId = Array.isArray(rawAccountId) ? rawAccountId[0] : rawAccountId;
-      if (!accountId) {
-        res.status(400).json({ status: 'fail', code: 'INVALID_PARAMETER', message: 'El parámetro accountId es requerido.' });
-        return;
-      }
-      if (!this.getBalanceUseCase) {
-        throw new Error('GetBalanceUseCase not configured.');
-      }
-      const account = await this.getBalanceUseCase.execute({ accountId });
+      const accountId = this.requireAccountId(req, res);
+      if (!accountId) return;
+
+      const account = await this.balanceProvider.execute(
+        { accountId },
+        req.user!.userId,
+      );
 
       res.status(200).json({
         status: 'success',
@@ -66,48 +62,49 @@ export class AccountController {
     }
   };
 
-  freeze = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processFreeze = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const rawAccountId = req.params.accountId;
-      const accountId = Array.isArray(rawAccountId) ? rawAccountId[0] : rawAccountId;
-      if (!accountId) {
-        res.status(400).json({ status: 'fail', code: 'INVALID_PARAMETER', message: 'El parámetro accountId es requerido.' });
-        return;
-      }
-      if (!this.freezeAccountUseCase) {
-        throw new Error('FreezeAccountUseCase not configured.');
-      }
-      await this.freezeAccountUseCase.execute(accountId);
+      const accountId = this.requireAccountId(req, res);
+      if (!accountId) return;
+
+      await this.freezeService.execute(accountId, req.user!.userId);
 
       res.status(200).json({
         status: 'success',
-        message: 'Cuenta congelada exitosamente.',
+        message: 'Cuenta congelada correctamente',
       });
     } catch (error) {
       next(error);
     }
   };
 
-  unfreeze = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processUnfreeze = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const rawAccountId = req.params.accountId;
-      const accountId = Array.isArray(rawAccountId) ? rawAccountId[0] : rawAccountId;
-      if (!accountId) {
-        res.status(400).json({ status: 'fail', code: 'INVALID_PARAMETER', message: 'El parámetro accountId es requerido.' });
-        return;
-      }
-      if (!this.unfreezeAccountUseCase) {
-        throw new Error('UnfreezeAccountUseCase not configured.');
-      }
-      await this.unfreezeAccountUseCase.execute(accountId);
+      const accountId = this.requireAccountId(req, res);
+      if (!accountId) return;
+
+      await this.unfreezeService.execute(accountId, req.user!.userId);
 
       res.status(200).json({
         status: 'success',
-        message: 'Cuenta descongelada exitosamente.',
+        message: 'Cuenta descongelada correctamente',
       });
     } catch (error) {
       next(error);
     }
   };
+
+  private requireAccountId(req: AuthenticatedRequest, res: Response): string | null {
+    const rawId = req.params.accountId;
+    const accountId = Array.isArray(rawId) ? rawId[0] : rawId;
+    if (!accountId) {
+      res.status(400).json({
+        status: 'fail',
+        code: 'INVALID_PARAMETER',
+        message: 'accountId is required.',
+      });
+      return null;
+    }
+    return accountId;
+  }
 }
-

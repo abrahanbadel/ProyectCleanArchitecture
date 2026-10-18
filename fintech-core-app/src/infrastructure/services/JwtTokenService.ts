@@ -11,7 +11,7 @@ export class JwtTokenService implements TokenService {
   constructor() {
     // Lectura de variables de entorno con valores por defecto seguros para entorno local
     this.secretKey = process.env.JWT_SECRET || 'default_secret';
-    this.expiresIn = process.env.JWT_EXPIRES_IN || '1h';
+    this.expiresIn = process.env.JWT_EXPIRES_IN || '8h';
   }
 
   generateToken(payload: TokenPayload): string {

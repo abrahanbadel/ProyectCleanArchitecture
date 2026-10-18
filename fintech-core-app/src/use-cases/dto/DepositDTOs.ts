@@ -1,10 +1,11 @@
-export interface DepositInputDTO {
-  accountId: string;
-  amount: number;
-}
+/** Solicitud de abono a cuenta (RF-3.1). */
+export type FundDepositRequest = {
+  readonly accountId: string;
+  readonly amount: number;
+};
 
-export interface DepositOutputDTO {
-  accountId: string;
-  newBalance: number;
-  depositedAt: Date;
-}
+export type FundDepositResponse = {
+  readonly accountId: string;
+  readonly newBalance: number;
+  readonly depositedAt: Date;
+};

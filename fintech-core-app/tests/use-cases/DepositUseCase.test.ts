@@ -1,84 +1,83 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DepositUseCase } from '../../src/use-cases/DepositUseCase';
-import { AccountRepository } from '../../src/domain/repositories/Repositories';
-import { Account } from '../../src/domain/entities/Account';
+import { FundDepositService } from '../../src/use-cases/DepositUseCase';
+import { BankAccountPersistence } from '../../src/domain/repositories/Repositories';
 import {
   InvalidAmountError,
   AccountNotFoundError,
   AccountFrozenError,
+  ForbiddenAccountAccessError,
 } from '../../src/domain/exceptions/FinancialError';
-import { Decimal } from 'decimal.js';
+import { buildBankAccount } from '../helpers/bankAccountFactory';
 
-describe('DepositUseCase', () => {
-  let mockAccountRepo: AccountRepository;
-  let useCase: DepositUseCase;
+const OWNER = 'user-1';
+
+describe('FundDepositService', () => {
+  let bankRepo: BankAccountPersistence;
+  let service: FundDepositService;
 
   beforeEach(() => {
-    mockAccountRepo = {
-      findById: vi.fn(),
-      findByAccountNumber: vi.fn(),
-      findByUserId: vi.fn(),
+    bankRepo = {
+      getById: vi.fn(),
+      getByIban: vi.fn(),
+      getByOwner: vi.fn(),
       save: vi.fn(),
-      update: vi.fn(),
-      executeTransaction: vi.fn(),
+      persist: vi.fn(),
+      recordMovement: vi.fn().mockResolvedValue({}),
     };
-    useCase = new DepositUseCase(mockAccountRepo);
+    service = new FundDepositService(bankRepo);
   });
 
-  it('Escenario 1: Depósito exitoso incrementa el saldo y ejecuta la transacción', async () => {
-    const existingAccount = Account.create({
-      id: 'acc-1',
-      accountNumber: 'ACC-1111',
-      balance: new Decimal('100.00'),
-      userId: 'user-1',
-      status: 'ACTIVE',
-      createdAt: new Date(),
-    });
+  it('RF-3.1 Escenario 1: depósito exitoso registra movimiento y retorna saldo', async () => {
+    const existing = buildBankAccount({ currentBalance: '100.00', ownerId: OWNER });
+    const updated = buildBankAccount({ currentBalance: '150.00', ownerId: OWNER });
 
-    const updatedAccount = Account.create({
-      id: 'acc-1',
-      accountNumber: 'ACC-1111',
-      balance: new Decimal('150.00'),
-      userId: 'user-1',
-      status: 'ACTIVE',
-      createdAt: new Date(),
-    });
+    vi.mocked(bankRepo.getById)
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(updated);
 
-    vi.mocked(mockAccountRepo.findById)
-      .mockResolvedValueOnce(existingAccount)
-      .mockResolvedValueOnce(updatedAccount);
-    vi.mocked(mockAccountRepo.executeTransaction).mockResolvedValue({} as any);
-
-    const result = await useCase.execute({ accountId: 'acc-1', amount: 50.00 });
+    const result = await service.execute({ accountId: 'acc-1', amount: 50 }, OWNER);
 
     expect(result.accountId).toBe('acc-1');
-    expect(result.newBalance).toBe(150.00);
-    expect(mockAccountRepo.executeTransaction).toHaveBeenCalledOnce();
+    expect(result.newBalance).toBe(150);
+    expect(bankRepo.recordMovement).toHaveBeenCalledOnce();
   });
 
-  it('Escenario 2: Lanza InvalidAmountError si el monto es menor o igual a cero', async () => {
-    await expect(useCase.execute({ accountId: 'acc-1', amount: 0 })).rejects.toThrow(InvalidAmountError);
-    await expect(useCase.execute({ accountId: 'acc-1', amount: -25 })).rejects.toThrow(InvalidAmountError);
-    expect(mockAccountRepo.executeTransaction).not.toHaveBeenCalled();
+  it('RF-3.1 Escenario 2: rechaza monto no positivo', async () => {
+    await expect(service.execute({ accountId: 'acc-1', amount: 0 }, OWNER)).rejects.toThrow(
+      InvalidAmountError,
+    );
+    await expect(service.execute({ accountId: 'acc-1', amount: -25 }, OWNER)).rejects.toThrow(
+      InvalidAmountError,
+    );
+    expect(bankRepo.recordMovement).not.toHaveBeenCalled();
   });
 
-  it('Escenario 3: Lanza AccountNotFoundError si la cuenta destino no existe', async () => {
-    vi.mocked(mockAccountRepo.findById).mockResolvedValue(null);
+  it('RF-3.1 Escenario 3: rechaza cuenta inexistente', async () => {
+    vi.mocked(bankRepo.getById).mockResolvedValue(null);
 
-    await expect(useCase.execute({ accountId: 'acc-nonexistent', amount: 50 })).rejects.toThrow(AccountNotFoundError);
+    await expect(
+      service.execute({ accountId: 'acc-nonexistent', amount: 50 }, OWNER),
+    ).rejects.toThrow(AccountNotFoundError);
   });
 
-  it('Escenario 4: Lanza AccountFrozenError si la cuenta está congelada', async () => {
-    const frozenAccount = Account.create({
-      id: 'acc-frozen',
-      accountNumber: 'ACC-FROZEN',
-      balance: new Decimal('50.00'),
-      userId: 'user-1',
-      status: 'FROZEN',
-      createdAt: new Date(),
-    });
-    vi.mocked(mockAccountRepo.findById).mockResolvedValue(frozenAccount);
+  it('RF-3.1 Escenario 4: rechaza cuenta congelada (invariante de dominio en recordMovement)', async () => {
+    vi.mocked(bankRepo.getById).mockResolvedValue(
+      buildBankAccount({ uid: 'acc-frozen', accountStatus: 'FROZEN', ownerId: OWNER }),
+    );
+    vi.mocked(bankRepo.recordMovement).mockRejectedValue(new AccountFrozenError('acc-frozen'));
 
-    await expect(useCase.execute({ accountId: 'acc-frozen', amount: 50 })).rejects.toThrow(AccountFrozenError);
+    await expect(
+      service.execute({ accountId: 'acc-frozen', amount: 50 }, OWNER),
+    ).rejects.toThrow(AccountFrozenError);
+  });
+
+  it('RF-3.1 Escenario 5: rechaza acceso si la cuenta no es del solicitante', async () => {
+    vi.mocked(bankRepo.getById).mockResolvedValue(
+      buildBankAccount({ ownerId: 'otro-usuario' }),
+    );
+
+    await expect(
+      service.execute({ accountId: 'acc-1', amount: 50 }, OWNER),
+    ).rejects.toThrow(ForbiddenAccountAccessError);
   });
 });

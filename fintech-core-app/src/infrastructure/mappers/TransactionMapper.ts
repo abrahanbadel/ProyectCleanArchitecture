@@ -1,68 +1,84 @@
 import { Decimal } from 'decimal.js';
-import { Transaction as PrismaTransaction, TransactionType, Prisma } from '../../generated/prisma/client';
-import { Transaction, Deposit, Withdrawal, Transfer} from '../../domain/entities/Transaction';
+import { Transaction as PrismaTx, TransactionType, Prisma } from '../../generated/prisma/client';
+import { FinancialMovement, Deposit, Withdrawal, Transfer } from '../../domain/entities/Transaction';
 
-export class TransactionMapper {
-  
-  public static toDomain(prismaTx: PrismaTransaction): Transaction {
-    const txProps = {
-      id: prismaTx.id,
-      amount: new Decimal(prismaTx.amount.toNumber()),
-      status: prismaTx.status,
-      description: prismaTx.description ?? '',
-      createdAt: prismaTx.createdAt
+export class MovementMapper {
+  public static mapToDomain(raw: PrismaTx): FinancialMovement {
+    const base = {
+      id: raw.id,
+      amount: new Decimal(raw.amount.toString()),
+      status: raw.status,
+      description: raw.description ?? '',
+      createdAt: raw.createdAt
     };
 
-    // Reconstrucción polimórfica basada en el discriminador STI
-    switch (prismaTx.type) {
+    switch (raw.type) {
       case TransactionType.DEPOSIT:
-        if (!prismaTx.destinationAccountId) throw new Error("Inconsistencia en DB: Deposit requiere destinationAccountId");
-        return Deposit.create({...txProps, destinationAccountId: prismaTx.destinationAccountId });
+        if (!raw.destinationAccountId) throw new Error("DB Error: Missing destination for Deposit");
+        return Deposit.create({
+          value: base.amount,
+          txStatus: base.status,
+          note: base.description,
+          timestamp: base.createdAt,
+          targetAccount: raw.destinationAccountId
+        });
 
       case TransactionType.WITHDRAWAL:
-        if (!prismaTx.sourceAccountId) throw new Error("Inconsistencia en DB: Withdrawal requiere sourceAccountId");
-        return Withdrawal.create({...txProps, sourceAccountId: prismaTx.sourceAccountId });
+        if (!raw.sourceAccountId) throw new Error("DB Error: Missing source for Withdrawal");
+        return Withdrawal.create({
+          value: base.amount,
+          txStatus: base.status,
+          note: base.description,
+          timestamp: base.createdAt,
+          originAccount: raw.sourceAccountId
+        });
 
       case TransactionType.TRANSFER:
-        if (!prismaTx.sourceAccountId || !prismaTx.destinationAccountId) {
-            throw new Error("Inconsistencia en DB: Transfer requiere ambas cuentas (origen y destino)");
+        if (!raw.sourceAccountId || !raw.destinationAccountId) {
+            throw new Error("DB Error: Transfer missing source or destination");
         }
-        return Transfer.create({...txProps, sourceAccountId: prismaTx.sourceAccountId, destinationAccountId: prismaTx.destinationAccountId });
+        return Transfer.create({
+          value: base.amount,
+          txStatus: base.status,
+          note: base.description,
+          timestamp: base.createdAt,
+          originAccount: raw.sourceAccountId,
+          targetAccount: raw.destinationAccountId
+        });
 
       default:
-        throw new Error(`Tipo de transacción desconocido o corrupto en DB: ${prismaTx.type}`);
+        throw new Error(`Unknown TxType: ${raw.type}`);
     }
   }
 
-  public static toPersistence(transaction: Transaction): Prisma.TransactionUncheckedCreateInput {
+  public static mapToDb(movement: FinancialMovement): Prisma.TransactionUncheckedCreateInput {
     let type: TransactionType;
-    let sourceAccountId: string | null = null;
-    let destinationAccountId: string | null = null;
+    let sourceId: string | null = null;
+    let targetId: string | null = null;
 
-    // Dependiendo de la instancia en memoria, determinamos la forma del registro plano
-    if (transaction instanceof Deposit) {
+    if (movement instanceof Deposit) {
       type = TransactionType.DEPOSIT;
-      destinationAccountId = transaction.destinationAccount;
-    } else if (transaction instanceof Withdrawal) {
+      targetId = movement.destinationAccount;
+    } else if (movement instanceof Withdrawal) {
       type = TransactionType.WITHDRAWAL;
-      sourceAccountId = transaction.sourceAccount;
-    } else if (transaction instanceof Transfer) {
+      sourceId = movement.sourceAccount;
+    } else if (movement instanceof Transfer) {
       type = TransactionType.TRANSFER;
-      sourceAccountId = transaction.sourceAccount;
-      destinationAccountId = transaction.destinationAccount;
+      sourceId = movement.sourceAccount;
+      targetId = movement.destinationAccount;
     } else {
-      throw new Error("Instancia de transacción inválida proporcionada al Mapper");
+      throw new Error("Invalid movement instance");
     }
 
     return {
-      ...(transaction.id ? { id: transaction.id } : {}),
-      amount: transaction.amount,
+      ...(movement.id ? { id: movement.id } : {}),
+      amount: movement.amount,
       type,
-      status: transaction.status,
-      description: transaction.description,
-      sourceAccountId,
-      destinationAccountId,
-      createdAt: transaction.createdAt,
+      status: movement.status,
+      description: movement.description,
+      sourceAccountId: sourceId,
+      destinationAccountId: targetId,
+      createdAt: movement.createdAt,
     };
   }
 }

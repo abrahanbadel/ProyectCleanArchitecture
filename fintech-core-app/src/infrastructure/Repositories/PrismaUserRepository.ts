@@ -1,54 +1,41 @@
 import { PrismaClient } from '../../generated/prisma/client';
-import { UserRepository } from '../../domain/repositories/Repositories';
+import { UserPersistence } from '../../domain/repositories/Repositories';
 import { User } from '../../domain/entities/User';
-import { UserMapper } from '../mappers/Usermapper';
+import { UserPersistenceMapper } from '../mappers/Usermapper';
 
-export class PrismaUserRepository implements UserRepository {
-  constructor(private readonly prisma: PrismaClient) { }
+export class SqlUserPersistence implements UserPersistence {
+  constructor(private readonly db: PrismaClient) { }
 
-  async save(user: User): Promise<User> {
-    const data = UserMapper.toPersistence(user);
+  async upsert(user: User): Promise<User> {
+    const dbData = UserPersistenceMapper.mapToDb(user);
 
-    const prismaUser = user.id
-      ? await this.prisma.user.upsert({
+    const result = user.id
+      ? await this.db.user.upsert({
           where: { id: user.id },
           update: {
             email: user.email,
             passwordHash: user.passwordHash,
             fullName: user.fullName,
           },
-          create: data,
+          create: dbData,
         })
-      : await this.prisma.user.create({ data });
+      : await this.db.user.create({ data: dbData });
 
-    return UserMapper.toDomain(prismaUser);
+    return UserPersistenceMapper.mapToDomain(result);
   }
 
-  async findById(id: string): Promise<User | null> {
-    const prismaUser = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!prismaUser) return null;
-
-    return UserMapper.toDomain(prismaUser);
+  async getById(id: string): Promise<User | null> {
+    const raw = await this.db.user.findUnique({ where: { id } });
+    return raw ? UserPersistenceMapper.mapToDomain(raw) : null;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    const prismaUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!prismaUser) return null;
-
-    return UserMapper.toDomain(prismaUser);
+  async getByEmail(email: string): Promise<User | null> {
+    const raw = await this.db.user.findUnique({ where: { email } });
+    return raw ? UserPersistenceMapper.mapToDomain(raw) : null;
   }
 
-  async findByFullName(fullName: string): Promise<User[]> {
-    const prismaUsers = await this.prisma.user.findMany({
-      where: { fullName },
-    });
-
-    return prismaUsers.map(UserMapper.toDomain);
+  async searchByName(fullName: string): Promise<User[]> {
+    const rawList = await this.db.user.findMany({ where: { fullName } });
+    return rawList.map(UserPersistenceMapper.mapToDomain);
   }
 }

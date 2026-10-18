@@ -1,37 +1,40 @@
-import { UserRepository } from "../domain/repositories/Repositories";
+import { UserPersistence } from "../domain/repositories/Repositories";
 import { PasswordHasher } from "../domain/services/PasswordHasher";
 import { TokenService } from "../domain/services/TokenService";
 import { InvalidCredentialsError } from "../domain/exceptions/UserError";
-import { LoginInputDTO, LoginOutputDTO } from "./dto/AuthDTOs";
+import { UserLoginRequest, UserLoginResponse } from "./dto/AuthDTOs";
 
-export class LoginUseCase {
+export class UserLoginService {
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly tokenService: TokenService,
-    private readonly passwordHasher: PasswordHasher
+    private readonly userRepo: UserPersistence,
+    private readonly tokenProvider: TokenService,
+    private readonly pwdHasher: PasswordHasher
   ) { }
 
-  async execute(input: LoginInputDTO): Promise<LoginOutputDTO> {
-    const user = await this.userRepository.findByEmail(input.email);
+  async execute(credentials: UserLoginRequest): Promise<UserLoginResponse> {
+    const accountHolder = await this.userRepo.getByEmail(credentials.email);
 
-    if (!user) {
+    if (!accountHolder) {
       throw new InvalidCredentialsError('Credenciales inválidas.');
     }
 
-    const isPasswordValid = await this.passwordHasher.compare(input.password, user.passwordHash);
+    const isMatch = await this.pwdHasher.compare(credentials.password, accountHolder.passwordHash);
 
-    if (!isPasswordValid) {
+    if (!isMatch) {
       throw new InvalidCredentialsError('Credenciales inválidas.');
     }
 
-    const token = this.tokenService.generateToken({ userId: user.id!, email: user.email });
+    const authToken = this.tokenProvider.generateToken({
+      userId: accountHolder.id!,
+      email: accountHolder.email
+    });
 
     return {
-      token,
+      token: authToken,
       user: {
-        id: user.id!,
-        name: user.fullName,
-        email: user.email,
+        id: accountHolder.id!,
+        name: accountHolder.fullName,
+        email: accountHolder.email,
       },
     };
   }

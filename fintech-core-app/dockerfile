@@ -1,23 +1,36 @@
+# Etapa builder
 FROM node:24-alpine AS builder
+
+RUN npm install -g pnpm@12
+
 WORKDIR /app
-RUN apk add --no-cache python3 make g++
-RUN npm install -g pnpm@10
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY prisma.config.ts ./
-COPY prisma ./prisma
+
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
 RUN pnpm install --frozen-lockfile
+
 COPY . .
 RUN pnpm exec prisma generate
-RUN pnpm build
+RUN pnpm run build
 
+# Etapa runner
 FROM node:24-alpine AS runner
+
+RUN npm install -g pnpm@12
+
 WORKDIR /app
-RUN npm install -g pnpm@10
+
 ENV NODE_ENV=production
+
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+COPY docker-entrypoint.sh ./
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/generated ./src/generated
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./
+
+RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
+
 EXPOSE 3000
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/server.js"]
+
+CMD ["./docker-entrypoint.sh"]

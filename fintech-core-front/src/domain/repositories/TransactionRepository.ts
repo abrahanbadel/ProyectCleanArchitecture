@@ -2,7 +2,8 @@ import { TransactionHistory, TransactionRecord } from '../entities/Transaction';
 
 export interface TransferParams {
   sourceAccountId: string;
-  destinationAccountId: string;
+  /** Número de cuenta IBAN de la cuenta destino. */
+  destinationAccountNumber: string;
   amount: number;
   description?: string;
 }

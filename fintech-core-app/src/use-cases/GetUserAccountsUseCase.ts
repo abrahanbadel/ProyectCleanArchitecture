@@ -1,12 +1,12 @@
-import { AccountRepository } from "../domain/repositories/Repositories";
-import { AccountOutputDTO, GetUserAccountsInputDTO } from "./dto/AccountDTOs";
+import { BankAccountPersistence } from "../domain/repositories/Repositories";
+import { AccountNotFoundError } from "../domain/exceptions/FinancialError";
+import { GetUserAccountsInputDTO, AccountOutputDTO } from "./dto/AccountDTOs";
 
-export class GetUserAccountsUseCase {
+export class AccountProviderService {
+  constructor(private readonly bankRepo: BankAccountPersistence) { }
 
-  constructor(private readonly accountRepository: AccountRepository) { }
-
-  async execute(input: GetUserAccountsInputDTO): Promise<AccountOutputDTO[]> {
-    const accounts = await this.accountRepository.findByUserId(input.userId);
+  async execute(payload: GetUserAccountsInputDTO): Promise<AccountOutputDTO[]> {
+    const accounts = await this.bankRepo.getByOwner(payload.userId);
 
     return accounts.map((account) => ({
       id: account.id,

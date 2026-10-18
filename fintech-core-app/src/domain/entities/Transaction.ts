@@ -1,154 +1,130 @@
 import { Decimal } from 'decimal.js';
 import { InvalidAmountError, SameAccountTransferError } from '../exceptions/FinancialError';
 
-export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+export type MovementStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 
-export interface TransactionProps {
-  id: string;
-  amount: Decimal;
-  status: TransactionStatus;
-  description: string;
-  createdAt: Date;
+export interface MovementProps {
+  txId: string;
+  value: Decimal;
+  txStatus: MovementStatus;
+  note: string;
+  timestamp: Date;
 }
 
-export interface DepositProps extends Omit<TransactionProps, 'id'> {
-  id?: string;
-  destinationAccountId: string;
+export interface DepositData extends Omit<MovementProps, 'txId'> {
+  txId?: string;
+  targetAccount: string;
 }
 
-export interface WithdrawalProps extends Omit<TransactionProps, 'id'> {
-  id?: string;
-  sourceAccountId: string;
+export interface WithdrawalData extends Omit<MovementProps, 'txId'> {
+  txId?: string;
+  originAccount: string;
 }
 
-export interface TransferProps extends Omit<TransactionProps, 'id'> {
-  id?: string;
-  sourceAccountId: string;
-  destinationAccountId: string;
+export interface TransferData extends Omit<MovementProps, 'txId'> {
+  txId?: string;
+  originAccount: string;
+  targetAccount: string;
 }
 
-/**
- * Clase Abstracta Base: Define el esqueleto y las reglas universales
- * para cualquier movimiento de dinero en la plataforma.
- */
-export abstract class Transaction {
-  protected props: TransactionProps;
+export abstract class FinancialMovement {
+  protected state: MovementProps;
 
-  protected constructor(props: TransactionProps) {
-    // Invariante universal: Nadie procesa transacciones de $0 o sumas negativas.
-    if (props.amount.lte(0)) {
-        throw new InvalidAmountError("El volumen monetario transaccional debe ser mayor a cero.");
+  protected constructor(props: MovementProps) {
+    if (props.value.lte(0)) {
+        throw new InvalidAmountError("El monto de la operación debe ser superior a cero.");
     }
-    this.props = props;
+    this.state = props;
   }
 
-  get id(): string { return this.props.id; }
-  get amount(): Decimal { return this.props.amount; }
-  get status(): TransactionStatus { return this.props.status; }
-  get description(): string { return this.props.description; }
-  get createdAt(): Date { return this.props.createdAt; }
-  
-  public markAsCompleted(): void {
-    this.props.status = 'COMPLETED';
+  get id(): string { return this.state.txId; }
+  get amount(): Decimal { return this.state.value; }
+  get status(): MovementStatus { return this.state.txStatus; }
+  get description(): string { return this.state.note; }
+  get createdAt(): Date { return this.state.timestamp; }
+
+  public confirm(): void {
+    this.state.txStatus = 'COMPLETED';
   }
 
-  public markAsFailed(): void {
-    this.props.status = 'FAILED';
+  public fail(): void {
+    this.state.txStatus = 'FAILED';
   }
 
-  /**
-   * POLIMORFISMO: Cada tipo de transacción (Depósito, Retiro) tendrá
-   * su propia forma de ejecutarse en el futuro.
-   */
-  abstract execute(): void;
+  abstract process(): void;
 }
 
-// ==========================================
-// SUBCLASES (Extensiones del Dominio)
-// ==========================================
+export class Deposit extends FinancialMovement {
+  private targetId: string;
 
-export class Deposit extends Transaction {
-  private destinationAccountId: string;
-
-  private constructor(props: TransactionProps, destinationId: string) {
+  private constructor(props: MovementProps, targetId: string) {
     super(props);
-    this.destinationAccountId = destinationId;
+    this.targetId = targetId;
   }
 
-  public static create(props: DepositProps): Deposit {
-    const { destinationAccountId, id, ...rest } = props;
-    const txProps: TransactionProps = {
+  public static create(props: DepositData): Deposit {
+    const { targetAccount, txId, ...rest } = props;
+    return new Deposit({
       ...rest,
-      id: id ?? crypto.randomUUID(),
-    };
-    return new Deposit(txProps, destinationAccountId);
+      txId: txId ?? crypto.randomUUID(),
+    }, targetAccount);
   }
 
-  get destinationAccount(): string { return this.destinationAccountId; }
+  get destinationAccount(): string { return this.targetId; }
 
-  execute(): void {
-    // Lógica futura específica para depósitos
-    this.markAsCompleted();
+  process(): void {
+    this.confirm();
   }
 }
 
-export class Withdrawal extends Transaction {
-  private sourceAccountId: string;
+export class Withdrawal extends FinancialMovement {
+  private originId: string;
 
-  private constructor(props: TransactionProps, sourceId: string) {
+  private constructor(props: MovementProps, originId: string) {
     super(props);
-    this.sourceAccountId = sourceId;
+    this.originId = originId;
   }
 
-  public static create(props: WithdrawalProps): Withdrawal {
-    const { sourceAccountId, id, ...rest } = props;
-    const txProps: TransactionProps = {
+  public static create(props: WithdrawalData): Withdrawal {
+    const { originAccount, txId, ...rest } = props;
+    return new Withdrawal({
       ...rest,
-      id: id ?? crypto.randomUUID(),
-    };
-    return new Withdrawal(txProps, sourceAccountId);
+      txId: txId ?? crypto.randomUUID(),
+    }, originAccount);
   }
 
-  get sourceAccount(): string { return this.sourceAccountId; }
+  get sourceAccount(): string { return this.originId; }
 
-  execute(): void {
-    // Lógica futura específica para retiros
-    this.markAsCompleted();
+  process(): void {
+    this.confirm();
   }
 }
 
-export class Transfer extends Transaction {
-  private sourceAccountId: string;
-  private destinationAccountId: string;
+export class Transfer extends FinancialMovement {
+  private originId: string;
+  private targetId: string;
 
-  private constructor(props: TransactionProps, sourceId: string, destId: string) {
+  private constructor(props: MovementProps, originId: string, targetId: string) {
     super(props);
-    // Invariante de fraude básico
-    if (sourceId === destId) {
-        throw new SameAccountTransferError("Alerta de Operación: No se permiten transferencias hacia la misma cuenta de origen.");
+    if (originId === targetId) {
+        throw new SameAccountTransferError("No se pueden realizar transferencias entre la misma cuenta.");
     }
-    this.sourceAccountId = sourceId;
-    this.destinationAccountId = destId;
+    this.originId = originId;
+    this.targetId = targetId;
   }
 
-  public static create(props: TransferProps): Transfer {
-    const { sourceAccountId, destinationAccountId, id, ...rest } = props;
-    const txProps: TransactionProps = {
+  public static create(props: TransferData): Transfer {
+    const { originAccount, targetAccount, txId, ...rest } = props;
+    return new Transfer({
       ...rest,
-      id: id ?? crypto.randomUUID(),
-    };
-    return new Transfer(txProps, sourceAccountId, destinationAccountId);
+      txId: txId ?? crypto.randomUUID(),
+    }, originAccount, targetAccount);
   }
 
-  get sourceAccount(): string { return this.sourceAccountId; }
-  get destinationAccount(): string { return this.destinationAccountId; }
+  get sourceAccount(): string { return this.originId; }
+  get destinationAccount(): string { return this.targetId; }
 
-  execute(): void {
-    /*
-       Nota Arquitectónica: La operación atómica real (restar de A y sumar a B en la Base de Datos)
-       NO ocurre aquí. Esta entidad solo representa el estado del movimiento.
-       El Caso de Uso (TransferMoneyUseCase) coordinará a la clase Account y a la Infraestructura.
-    */
-    this.markAsCompleted();
+  process(): void {
+    this.confirm();
   }
 }

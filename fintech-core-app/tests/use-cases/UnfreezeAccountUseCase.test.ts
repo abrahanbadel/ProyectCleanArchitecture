@@ -1,64 +1,61 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { UnfreezeAccountUseCase } from '../../src/use-cases/UnfreezeAccountUseCase';
-import { AccountRepository } from '../../src/domain/repositories/Repositories';
-import { Account } from '../../src/domain/entities/Account';
+import { AccountReactivationService } from '../../src/use-cases/UnfreezeAccountUseCase';
+import { BankAccountPersistence } from '../../src/domain/repositories/Repositories';
 import {
   AccountNotFrozenError,
   AccountNotFoundError,
+  ForbiddenAccountAccessError,
 } from '../../src/domain/exceptions/FinancialError';
-import { Decimal } from 'decimal.js';
+import { buildBankAccount } from '../helpers/bankAccountFactory';
 
-describe('UnfreezeAccountUseCase', () => {
-  let mockAccountRepo: AccountRepository;
-  let useCase: UnfreezeAccountUseCase;
+const OWNER = 'user-1';
+
+describe('AccountReactivationService', () => {
+  let bankRepo: BankAccountPersistence;
+  let service: AccountReactivationService;
 
   beforeEach(() => {
-    mockAccountRepo = {
-      findById: vi.fn(),
-      findByAccountNumber: vi.fn(),
-      findByUserId: vi.fn(),
+    bankRepo = {
+      getById: vi.fn(),
+      getByIban: vi.fn(),
+      getByOwner: vi.fn(),
       save: vi.fn(),
-      update: vi.fn().mockResolvedValue(undefined),
-      executeTransaction: vi.fn(),
+      persist: vi.fn().mockResolvedValue(undefined),
+      recordMovement: vi.fn(),
     };
-    useCase = new UnfreezeAccountUseCase(mockAccountRepo);
+    service = new AccountReactivationService(bankRepo);
   });
 
-  it('Escenario 1: Descongelar una cuenta congelada cambia su estado a ACTIVE y persiste', async () => {
-    const frozenAccount = Account.create({
-      id: 'acc-1',
-      accountNumber: 'ACC-1111',
-      balance: new Decimal('100.00'),
-      userId: 'user-1',
-      status: 'FROZEN',
-      createdAt: new Date(),
-    });
-    vi.mocked(mockAccountRepo.findById).mockResolvedValue(frozenAccount);
+  it('Reactiva una cuenta congelada y persiste el estado', async () => {
+    const frozen = buildBankAccount({ accountStatus: 'FROZEN', ownerId: OWNER });
+    vi.mocked(bankRepo.getById).mockResolvedValue(frozen);
 
-    await useCase.execute('acc-1');
+    await service.execute('acc-1', OWNER);
 
-    expect(frozenAccount.status).toBe('ACTIVE');
-    expect(mockAccountRepo.update).toHaveBeenCalledWith(frozenAccount);
+    expect(frozen.status).toBe('ACTIVE');
+    expect(bankRepo.persist).toHaveBeenCalledWith(frozen);
   });
 
-  it('Escenario 2: Lanza AccountNotFrozenError si la cuenta ya está activa', async () => {
-    const activeAccount = Account.create({
-      id: 'acc-1',
-      accountNumber: 'ACC-1111',
-      balance: new Decimal('100.00'),
-      userId: 'user-1',
-      status: 'ACTIVE',
-      createdAt: new Date(),
-    });
-    vi.mocked(mockAccountRepo.findById).mockResolvedValue(activeAccount);
+  it('Rechaza si la cuenta ya está activa', async () => {
+    vi.mocked(bankRepo.getById).mockResolvedValue(
+      buildBankAccount({ accountStatus: 'ACTIVE', ownerId: OWNER }),
+    );
 
-    await expect(useCase.execute('acc-1')).rejects.toThrow(AccountNotFrozenError);
-    expect(mockAccountRepo.update).not.toHaveBeenCalled();
+    await expect(service.execute('acc-1', OWNER)).rejects.toThrow(AccountNotFrozenError);
+    expect(bankRepo.persist).not.toHaveBeenCalled();
   });
 
-  it('Escenario 3: Lanza AccountNotFoundError si la cuenta no existe', async () => {
-    vi.mocked(mockAccountRepo.findById).mockResolvedValue(null);
+  it('Rechaza si la cuenta no existe', async () => {
+    vi.mocked(bankRepo.getById).mockResolvedValue(null);
 
-    await expect(useCase.execute('acc-unknown')).rejects.toThrow(AccountNotFoundError);
+    await expect(service.execute('acc-unknown', OWNER)).rejects.toThrow(AccountNotFoundError);
+  });
+
+  it('Rechaza acceso ajeno', async () => {
+    vi.mocked(bankRepo.getById).mockResolvedValue(
+      buildBankAccount({ accountStatus: 'FROZEN', ownerId: 'otro' }),
+    );
+
+    await expect(service.execute('acc-1', OWNER)).rejects.toThrow(ForbiddenAccountAccessError);
   });
 });

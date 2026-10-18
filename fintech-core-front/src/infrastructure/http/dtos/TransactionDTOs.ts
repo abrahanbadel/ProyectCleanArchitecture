@@ -19,7 +19,8 @@ export interface TransactionHistoryResponseDTO {
 
 export interface TransferRequestDTO {
   sourceAccountId: string;
-  destinationAccountId: string;
+  /** Número de cuenta IBAN de la cuenta destino. */
+  destinationAccountNumber: string;
   amount: number;
   description?: string;
 }

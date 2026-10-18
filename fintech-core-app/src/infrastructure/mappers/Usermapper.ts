@@ -1,24 +1,18 @@
 import { User as PrismaUser, Prisma } from '../../generated/prisma/client';
 import { User } from '../../domain/entities/User';
 
-export class UserMapper {
-  /**
-   * Convierte un registro de infraestructura a una entidad de dominio puro
-   */
-  public static toDomain(prismaUser: PrismaUser): User {
+export class UserPersistenceMapper {
+  public static mapToDomain(raw: PrismaUser): User {
     return User.create({
-      id: prismaUser.id,
-      email: prismaUser.email,
-      passwordHash: prismaUser.passwordHash,
-      fullName: prismaUser.fullName,
-      createdAt: prismaUser.createdAt,
+      id: raw.id,
+      email: raw.email,
+      passwordHash: raw.passwordHash,
+      fullName: raw.fullName,
+      createdAt: raw.createdAt,
     });
   }
 
-  /**
-   * Convierte una entidad de dominio a la estructura requerida por Prisma
-   */
-  public static toPersistence(user: User): Prisma.UserUncheckedCreateInput {
+  public static mapToDb(user: User): Prisma.UserUncheckedCreateInput {
     return {
       ...(user.id ? { id: user.id } : {}),
       email: user.email,
@@ -26,5 +20,14 @@ export class UserMapper {
       fullName: user.fullName,
       createdAt: user.createdAt,
     };
+  }
+
+  /** Alias pedido por el laboratorio (toDomain / toPersistence). */
+  public static toDomain(raw: PrismaUser): User {
+    return UserPersistenceMapper.mapToDomain(raw);
+  }
+
+  public static toPersistence(user: User): Prisma.UserUncheckedCreateInput {
+    return UserPersistenceMapper.mapToDb(user);
   }
 }

@@ -1,53 +1,52 @@
 import { Decimal } from "decimal.js";
 import { User } from "../domain/entities/User";
-import { Account } from "../domain/entities/Account";
-import { UserRepository, AccountRepository } from "../domain/repositories/Repositories";
+import { BankAccount } from "../domain/entities/Account";
+import { UserPersistence, BankAccountPersistence } from "../domain/repositories/Repositories";
 import { PasswordHasher } from "../domain/services/PasswordHasher";
 import { UserAlreadyExistsError } from "../domain/exceptions/UserError";
-import { RegisterUserInputDTO, RegisterUserOutputDTO } from "./dto/AuthDTOs";
+import { UserRegistrationRequest, UserRegistrationResponse } from "./dto/AuthDTOs";
 
-export class RegisterUserUseCase {
+export class UserRegistrationService {
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly passwordHasher: PasswordHasher,
-    private readonly accountRepository?: AccountRepository
+    private readonly userRepo: UserPersistence,
+    private readonly pwdHasher: PasswordHasher,
+    private readonly bankRepo?: BankAccountPersistence
   ) { }
 
-  async execute(input: RegisterUserInputDTO): Promise<RegisterUserOutputDTO> {
-    const existingUser = await this.userRepository.findByEmail(input.email);
+  async execute(payload: UserRegistrationRequest): Promise<UserRegistrationResponse> {
+    const userExists = await this.userRepo.getByEmail(payload.email);
 
-    if (existingUser) {
-      throw new UserAlreadyExistsError(input.email);
+    if (userExists) {
+      throw new UserAlreadyExistsError(payload.email);
     }
 
-    const passwordHash = await this.passwordHasher.hash(input.password);
+    const encryptedPassword = await this.pwdHasher.hash(payload.password);
 
-    const user = await this.userRepository.save(User.create({
+    const newUser = await this.userRepo.upsert(User.create({
       id: crypto.randomUUID(),
-      fullName: input.name,
-      email: input.email,
-      passwordHash: passwordHash,
+      fullName: payload.name,
+      email: payload.email,
+      passwordHash: encryptedPassword,
       createdAt: new Date()
     }));
 
-    if (this.accountRepository) {
-      const initialAccount = Account.create({
-        id: crypto.randomUUID(),
-        accountNumber: `ACC-${Math.floor(100000000 + Math.random() * 900000000)}`,
-        balance: new Decimal(0),
-        userId: user.id!,
-        status: "ACTIVE",
-        createdAt: new Date(),
+    if (this.bankRepo) {
+      const welcomeAccount = BankAccount.initialize({
+        uid: crypto.randomUUID(),
+        iban: `ACC-${Math.floor(100000000 + Math.random() * 900000000)}`,
+        currentBalance: new Decimal(0),
+        ownerId: newUser.id!,
+        accountStatus: "ACTIVE",
+        openedAt: new Date(),
       });
-      await this.accountRepository.save(initialAccount);
+      await this.bankRepo.save(welcomeAccount);
     }
 
     return {
-      id: user.id!,
-      name: user.fullName,
-      email: user.email,
-      createdAt: user.createdAt,
+      id: newUser.id!,
+      name: newUser.fullName,
+      email: newUser.email,
+      createdAt: newUser.createdAt,
     };
   }
 }
-

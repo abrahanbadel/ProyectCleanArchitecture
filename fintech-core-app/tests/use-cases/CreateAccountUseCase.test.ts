@@ -1,52 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CreateAccountUseCase } from '../../src/use-cases/CreateAccountUseCase';
-import { AccountRepository } from '../../src/domain/repositories/Repositories';
+import { AccountCreationService } from '../../src/use-cases/CreateAccountUseCase';
+import { BankAccountPersistence } from '../../src/domain/repositories/Repositories';
 import { InvalidAmountError } from '../../src/domain/exceptions/FinancialError';
 import { Decimal } from 'decimal.js';
 
-describe('CreateAccountUseCase', () => {
-  let mockAccountRepo: AccountRepository;
-  let useCase: CreateAccountUseCase;
+describe('AccountCreationService', () => {
+  let bankRepo: BankAccountPersistence;
+  let service: AccountCreationService;
 
   beforeEach(() => {
-    mockAccountRepo = {
-      findById: vi.fn(),
-      findByAccountNumber: vi.fn(),
-      findByUserId: vi.fn(),
+    bankRepo = {
+      getById: vi.fn(),
+      getByIban: vi.fn(),
+      getByOwner: vi.fn(),
       save: vi.fn().mockResolvedValue(undefined),
-      update: vi.fn().mockResolvedValue(undefined),
-      executeTransaction: vi.fn(),
+      persist: vi.fn(),
+      recordMovement: vi.fn(),
     };
-    useCase = new CreateAccountUseCase(mockAccountRepo);
+    service = new AccountCreationService(bankRepo);
   });
 
-  it('Escenario 1: Creación exitosa con balance inicial mayor a cero', async () => {
-    const input = { userId: 'user-123', initialBalance: 150.50 };
-    const result = await useCase.execute(input);
+  it('RF-2.1 Escenario 1: crea cuenta con saldo inicial positivo', async () => {
+    const result = await service.execute({ userId: 'user-123', initialBalance: 150.5 });
 
-    expect(result).toBeDefined();
     expect(result.userId).toBe('user-123');
-    expect(result.balance.equals(new Decimal(150.50))).toBe(true);
+    expect(result.balance.equals(new Decimal(150.5))).toBe(true);
     expect(result.status).toBe('ACTIVE');
     expect(result.accountNumber).toMatch(/^ACC-\d+/);
-    expect(mockAccountRepo.save).toHaveBeenCalledOnce();
+    expect(bankRepo.save).toHaveBeenCalledOnce();
   });
 
-  it('Escenario 2: Creación exitosa sin balance inicial (por defecto 0)', async () => {
-    const input = { userId: 'user-456' };
-    const result = await useCase.execute(input);
+  it('RF-2.1 Escenario 2: crea cuenta con saldo inicial 0 por defecto', async () => {
+    const result = await service.execute({ userId: 'user-456' });
 
-    expect(result).toBeDefined();
     expect(result.userId).toBe('user-456');
     expect(result.balance.equals(new Decimal(0))).toBe(true);
     expect(result.status).toBe('ACTIVE');
-    expect(mockAccountRepo.save).toHaveBeenCalledOnce();
+    expect(bankRepo.save).toHaveBeenCalledOnce();
   });
 
-  it('Escenario 3: Rechaza la creación si el monto inicial es negativo', async () => {
-    const input = { userId: 'user-789', initialBalance: -50 };
-
-    await expect(useCase.execute(input)).rejects.toThrow(InvalidAmountError);
-    expect(mockAccountRepo.save).not.toHaveBeenCalled();
+  it('RF-2.1 Escenario 3: rechaza saldo inicial negativo', async () => {
+    await expect(
+      service.execute({ userId: 'user-789', initialBalance: -50 }),
+    ).rejects.toThrow(InvalidAmountError);
+    expect(bankRepo.save).not.toHaveBeenCalled();
   });
 });

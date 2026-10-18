@@ -1,35 +1,30 @@
 import { PrismaClient } from '../../generated/prisma/client';
-import { TransactionRepository } from '../../domain/repositories/Repositories';
-import { Transaction } from '../../domain/entities/Transaction';
-import { TransactionMapper } from '../mappers/TransactionMapper';
+import { MovementPersistence } from '../../domain/repositories/Repositories';
+import { FinancialMovement } from '../../domain/entities/Transaction';
+import { MovementMapper } from '../mappers/TransactionMapper';
 
-export class PrismaTransactionRepository implements TransactionRepository {
-  constructor(private readonly prisma: PrismaClient) { }
+export class SqlMovementPersistence implements MovementPersistence {
+  constructor(private readonly db: PrismaClient) { }
 
-  async save(transaction: Transaction): Promise<void> {
-    const data = TransactionMapper.toPersistence(transaction);
+  async save(movement: FinancialMovement): Promise<void> {
+    const dbData = MovementMapper.mapToDb(movement);
 
-    await this.prisma.transaction.upsert({
-      where: { id: transaction.id },
+    await this.db.transaction.upsert({
+      where: { id: movement.id },
       update: {
-        status: transaction.status,
+        status: movement.status,
       },
-      create: data,
+      create: dbData,
     });
   }
 
-  async findById(id: string): Promise<Transaction | null> {
-    const prismaTransaction = await this.prisma.transaction.findUnique({
-      where: { id },
-    });
-
-    if (!prismaTransaction) return null;
-
-    return TransactionMapper.toDomain(prismaTransaction);
+  async getById(id: string): Promise<FinancialMovement | null> {
+    const raw = await this.db.transaction.findUnique({ where: { id } });
+    return raw ? MovementMapper.mapToDomain(raw) : null;
   }
 
-  async findByAccountId(accountId: string): Promise<Transaction[]> {
-    const prismaTransactions = await this.prisma.transaction.findMany({
+  async getByAccount(accountId: string): Promise<FinancialMovement[]> {
+    const rawList = await this.db.transaction.findMany({
       where: {
         OR: [
           { sourceAccountId: accountId },
@@ -39,6 +34,6 @@ export class PrismaTransactionRepository implements TransactionRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    return prismaTransactions.map(TransactionMapper.toDomain);
+    return rawList.map(MovementMapper.mapToDomain);
   }
 }

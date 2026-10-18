@@ -40,4 +40,10 @@ export class AccountNotFrozenError extends DomainError {
   constructor(accountId: string) {
     super(`Operación denegada: La cuenta [${accountId}] no está congelada y no puede ser descongelada.`);
   }
+}
+
+export class ForbiddenAccountAccessError extends DomainError {
+  constructor(accountId: string) {
+    super(`Acceso denegado: la cuenta [${accountId}] no pertenece al usuario autenticado.`);
+  }
 }

@@ -1,7 +1,4 @@
 node_modules
 dist
-.env
 .git
-*.md
-.agents
-.claude
+.env

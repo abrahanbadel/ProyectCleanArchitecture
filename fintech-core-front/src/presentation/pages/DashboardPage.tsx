@@ -155,7 +155,7 @@ export const DashboardPage: React.FC = () => {
 
   const handleTransferSubmit = async (params: {
     sourceAccountId: string;
-    destinationAccountId: string;
+    destinationAccountNumber: string;
     amount: number;
     description?: string;
   }) => {
@@ -163,7 +163,7 @@ export const DashboardPage: React.FC = () => {
     if (result) {
       // Refrescar saldos e historial desde el servidor tras confirmación del backend
       await fetchAccounts();
-      if (selectedAccount && (selectedAccount.id === params.sourceAccountId || selectedAccount.id === params.destinationAccountId)) {
+      if (selectedAccount && selectedAccount.id === params.sourceAccountId) {
         await selectAccount(selectedAccount.id);
       }
       handleCloseModal();

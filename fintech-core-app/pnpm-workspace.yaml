@@ -1,3 +1,5 @@
+packages:
+  - 'src'
 allowBuilds:
   '@prisma/engines': true
   bcrypt: true

@@ -1,21 +1,26 @@
-import { AccountAlreadyFrozenError, AccountNotFoundError } from "../domain/exceptions/FinancialError";
-import { AccountRepository } from "../domain/repositories/Repositories";
+import { BankAccountPersistence } from '../domain/repositories/Repositories';
+import {
+  AccountAlreadyFrozenError,
+  AccountNotFoundError,
+  ForbiddenAccountAccessError,
+} from '../domain/exceptions/FinancialError';
 
-export class FreezeAccountUseCase {
-  constructor(private readonly accountRepository: AccountRepository) { }
+export class AccountFreezeService {
+  constructor(private readonly bankRepo: BankAccountPersistence) {}
 
-  async execute(accountId: string): Promise<void> {
-    const account = await this.accountRepository.findById(accountId);
+  async execute(accountId: string, requesterId: string): Promise<void> {
+    const account = await this.bankRepo.getById(accountId);
     if (!account) {
       throw new AccountNotFoundError(accountId);
     }
-
-    if (account.status === "FROZEN") {
+    if (account.userId !== requesterId) {
+      throw new ForbiddenAccountAccessError(accountId);
+    }
+    if (account.status === 'FROZEN') {
       throw new AccountAlreadyFrozenError(accountId);
     }
 
-    account.freeze();
-
-    await this.accountRepository.update(account);
+    account.setFrozen();
+    await this.bankRepo.persist(account);
   }
-}
+}

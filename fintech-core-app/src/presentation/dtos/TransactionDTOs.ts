@@ -6,8 +6,9 @@ import { z } from 'zod';
 export const TransferMoneySchema = z.object({
   sourceAccountId: z
     .uuid({ error: 'ID de cuenta de origen debe ser un UUID válido' }),
-  destinationAccountId: z
-    .uuid({ error: 'ID de cuenta de destino debe ser un UUID válido' }),
+  destinationAccountNumber: z
+    .string({ error: 'El número de cuenta de destino es requerido' })
+    .min(1, 'El número de cuenta de destino no puede estar vacío'),
   amount: z
     .number({ error: 'El monto es requerido' })
     .positive('El monto a transferir debe ser un número estrictamente mayor a cero'),

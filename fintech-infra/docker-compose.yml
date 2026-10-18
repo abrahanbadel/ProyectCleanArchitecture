@@ -1,4 +1,5 @@
 name: fintech-app
+
 services:
   # -------------------------------------------------------------
   # CAPA DE PERSISTENCIA: Motor Relacional PostgreSQL 18
@@ -7,6 +8,8 @@ services:
     image: postgres:18-alpine
     container_name: postgres-db
     restart: always
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,7 +26,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   # -------------------------------------------------------------
   # CAPA DE APLICACIÓN: Backend API REST (Node.js + Prisma)
@@ -34,11 +37,14 @@ services:
       dockerfile: Dockerfile
     container_name: fintech-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-db:5432/${POSTGRES_DB}?schema=public
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
-      - PORT=3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-db:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8080}
+      PORT: 3000
     ports:
       - "${BACKEND_PORT}:3000"
     networks:
@@ -46,6 +52,16 @@ services:
     depends_on:
       postgres-db:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   # -------------------------------------------------------------
   # CAPA DE PRESENTACIÓN: Frontend Cliente Web (React + Nginx)
@@ -55,7 +71,7 @@ services:
       context: ../fintech-core-front
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:${BACKEND_PORT}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_PORT}}
     container_name: fintech-frontend
     restart: always
     ports:
@@ -63,7 +79,8 @@ services:
     networks:
       - fintech-network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 networks:
   fintech-network:

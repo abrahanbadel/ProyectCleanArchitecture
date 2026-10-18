@@ -1,25 +1,25 @@
 import { User } from '../entities/User';
-import { Account } from '../entities/Account';
-import { Transaction } from '../entities/Transaction';
+import { BankAccount } from '../entities/Account';
+import { FinancialMovement } from '../entities/Transaction';
 
-export interface UserRepository {
-  findById(id: string): Promise<User | null>;
-  findByEmail(email: string): Promise<User | null>;
-  findByFullName(fullName: string): Promise<User[]>;
-  save(user: User): Promise<User>;
+export interface UserPersistence {
+  getById(id: string): Promise<User | null>;
+  getByEmail(email: string): Promise<User | null>;
+  searchByName(fullName: string): Promise<User[]>;
+  upsert(user: User): Promise<User>;
 }
 
-export interface AccountRepository {
-  findById(id: string): Promise<Account | null>;
-  findByAccountNumber(accountNumber: string): Promise<Account | null>;
-  findByUserId(userId: string): Promise<Account[]>;
-  save(account: Account): Promise<void>;
-  update(account: Account): Promise<void>;
-  executeTransaction(transaction: Transaction): Promise<Transaction>;
+export interface BankAccountPersistence {
+  getById(id: string): Promise<BankAccount | null>;
+  getByIban(iban: string): Promise<BankAccount | null>;
+  getByOwner(userId: string): Promise<BankAccount[]>;
+  save(account: BankAccount): Promise<void>;
+  persist(account: BankAccount): Promise<void>;
+  recordMovement(movement: FinancialMovement): Promise<FinancialMovement>;
 }
 
-export interface TransactionRepository {
-  findById(id: string): Promise<Transaction | null>;
-  findByAccountId(accountId: string): Promise<Transaction[]>;
-  save(transaction: Transaction): Promise<void>;
+export interface MovementPersistence {
+  getById(id: string): Promise<FinancialMovement | null>;
+  getByAccount(accountId: string): Promise<FinancialMovement[]>;
+  save(movement: FinancialMovement): Promise<void>;
 }

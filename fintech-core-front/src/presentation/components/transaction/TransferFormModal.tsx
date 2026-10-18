@@ -15,7 +15,7 @@ interface TransferFormModalProps {
   onClose: () => void;
   onSubmit: (params: {
     sourceAccountId: string;
-    destinationAccountId: string;
+    destinationAccountNumber: string;
     amount: number;
     description?: string;
   }) => Promise<void>;
@@ -31,9 +31,7 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
   onSubmit,
 }) => {
   const [sourceAccountId, setSourceAccountId] = useState(defaultSourceAccountId || accounts[0]?.id || '');
-  const [destinationAccountId, setDestinationAccountId] = useState(
-    accounts.find((a) => a.id !== (defaultSourceAccountId || accounts[0]?.id))?.id || ''
-  );
+  const [destinationAccountNumber, setDestinationAccountNumber] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [description, setDescription] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -47,7 +45,7 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
     const numericAmount = parseFloat(amountStr);
     const validation = TransferMoneySchema.safeParse({
       sourceAccountId,
-      destinationAccountId,
+      destinationAccountNumber,
       amount: isNaN(numericAmount) ? 0 : numericAmount,
       description: description || undefined,
     });
@@ -66,7 +64,7 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
 
     await onSubmit({
       sourceAccountId,
-      destinationAccountId,
+      destinationAccountNumber,
       amount: numericAmount,
       description: description || undefined,
     });
@@ -107,19 +105,19 @@ export const TransferFormModal: React.FC<TransferFormModalProps> = ({
             </div>
 
             <div className="input-field">
-              <label htmlFor="transfer-destination">Cuenta de Destino (ID / UUID)</label>
+              <label htmlFor="transfer-destination">Número de Cuenta de Destino</label>
               <input
                 id="transfer-destination"
                 type="text"
                 className="input-control"
-                placeholder="UUID de la cuenta destino"
-                value={destinationAccountId}
-                onChange={(e) => setDestinationAccountId(e.target.value)}
+                placeholder="Ej. ACC-123456789"
+                value={destinationAccountNumber}
+                onChange={(e) => setDestinationAccountNumber(e.target.value.trim())}
                 disabled={isLoading}
                 required
               />
-              {fieldErrors['destinationAccountId'] && (
-                <span className="error-message">{fieldErrors['destinationAccountId']}</span>
+              {fieldErrors['destinationAccountNumber'] && (
+                <span className="error-message">{fieldErrors['destinationAccountNumber']}</span>
               )}
             </div>
 

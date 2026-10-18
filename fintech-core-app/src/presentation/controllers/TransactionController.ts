@@ -1,25 +1,25 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middlewares/AuthMiddleware';
-import { TransferMoneyUseCase } from '../../use-cases/TransferMoneyUseCase';
-import { DepositUseCase } from '../../use-cases/DepositUseCase';
-import { WithdrawalUseCase } from '../../use-cases/WithdrawalUseCase';
-import { GetTransactionHistoryUseCase } from '../../use-cases/GetTransactionHistoryUseCase';
+import { TransferFundsService } from '../../use-cases/TransferMoneyUseCase';
+import { FundDepositService } from '../../use-cases/DepositUseCase';
+import { CashWithdrawalService } from '../../use-cases/WithdrawalUseCase';
+import { TransactionHistoryService } from '../../use-cases/GetTransactionHistoryUseCase';
 
 export class TransactionController {
   constructor(
-    private readonly transferMoneyUseCase: TransferMoneyUseCase,
-    private readonly depositUseCase: DepositUseCase,
-    private readonly withdrawalUseCase: WithdrawalUseCase,
-    private readonly getTransactionHistoryUseCase: GetTransactionHistoryUseCase
+    private readonly transferService: TransferFundsService,
+    private readonly depositService: FundDepositService,
+    private readonly withdrawalService: CashWithdrawalService,
+    private readonly historyService: TransactionHistoryService,
   ) {}
 
-  transfer = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processTransfer = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.transferMoneyUseCase.execute(req.body);
+      const result = await this.transferService.execute(req.body, req.user!.userId);
 
       res.status(201).json({
         status: 'success',
-        message: 'Transferencia ejecutada de forma satisfactoria',
+        message: 'Transferencia procesada correctamente',
         data: result,
       });
     } catch (error) {
@@ -27,13 +27,13 @@ export class TransactionController {
     }
   };
 
-  deposit = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processDeposit = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.depositUseCase.execute(req.body);
+      const result = await this.depositService.execute(req.body, req.user!.userId);
 
       res.status(201).json({
         status: 'success',
-        message: 'Depósito ejecutado de forma satisfactoria',
+        message: 'Depósito procesado correctamente',
         data: result,
       });
     } catch (error) {
@@ -41,13 +41,13 @@ export class TransactionController {
     }
   };
 
-  withdraw = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processWithdraw = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.withdrawalUseCase.execute(req.body);
+      const result = await this.withdrawalService.execute(req.body, req.user!.userId);
 
       res.status(201).json({
         status: 'success',
-        message: 'Retiro ejecutado de forma satisfactoria',
+        message: 'Retiro procesado correctamente',
         data: result,
       });
     } catch (error) {
@@ -55,10 +55,10 @@ export class TransactionController {
     }
   };
 
-  getHistory = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  processHistory = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const accountId = req.params.accountId as string;
-      const history = await this.getTransactionHistoryUseCase.execute({ accountId });
+      const history = await this.historyService.execute({ accountId }, req.user!.userId);
 
       res.status(200).json({
         status: 'success',

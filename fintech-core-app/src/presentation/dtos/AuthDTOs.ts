@@ -13,6 +13,8 @@ export const RegisterUserSchema = z.object({
   password: z
     .string({ error: 'La contraseña es requerida' })
     .min(8, { error: 'La contraseña debe tener mínimo 8 caracteres' })
+    .regex(/[A-Z]/, { error: 'La contraseña debe incluir al menos una mayúscula' })
+    .regex(/[0-9]/, { error: 'La contraseña debe incluir al menos un número' }),
 });
 
 /**
